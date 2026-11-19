@@ -235,8 +235,17 @@ svg.lucide { width: 1.1em; height: 1.1em; stroke-width: 2; flex: none; vertical-
 .cv-controls input:focus, .cv-controls select:focus, .cv-controls textarea:focus { outline: none; border-color: var(--green-3); box-shadow: 0 0 0 4px var(--ring); }
 .cv-controls textarea { resize: vertical; }
 .cv-btns { display: flex; gap: 10px; flex-wrap: wrap; }
-.match { font-size: .82rem; color: var(--muted); }
-.match span { display: inline-block; margin: 3px 4px 0 0; padding: 2px 9px; border-radius: 999px; background: var(--mint); color: var(--green); font-weight: 600; }
+.cv-role { display: flex; gap: 8px; align-items: center; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--mint); color: var(--green); font-weight: 700; font-size: .92rem; }
+.lang-pick { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.lang-pick legend { font-size: .85rem; font-weight: 700; margin-bottom: 8px; padding: 0; }
+.lang-pick label { position: relative; display: block; cursor: pointer; }
+.lang-pick input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.lang-pick span { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); font-weight: 700; transition: border-color .18s, background .18s, box-shadow .18s; }
+.lang-pick span::after { content: ""; margin-left: auto; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); transition: all .18s; }
+.lang-pick label:hover span { border-color: var(--green-3); }
+.lang-pick input:checked + span { border-color: var(--green-2); background: var(--mint); box-shadow: 0 0 0 4px var(--ring); }
+.lang-pick input:checked + span::after { border: 5px solid var(--green-2); }
+.lang-pick input:focus-visible + span { outline: 3px solid var(--ring); outline-offset: 2px; }
 .cv-paper-wrap { overflow-y: auto; background: var(--bg2); padding: 24px; }
 
 /* The CV itself: single column, standard fonts, no tables/graphics — stays readable by ATS parsers. */
@@ -301,3 +310,5 @@ svg.lucide { width: 1.1em; height: 1.1em; stroke-width: 2; flex: none; vertical-
   .cv-paper { padding: 24px 18px; }
   .proj .tag-sticker { margin-left: 0; vertical-align: 0; display: flex; width: fit-content; }
 }
+.lang-code { display: inline-grid; place-items: center; min-width: 34px; height: 26px; border-radius: 8px; background: var(--bg2); color: var(--green); font: 700 .72rem "JetBrains Mono", monospace; }
+.lang-pick input:checked + span .lang-code { background: var(--green-2); color: #fff; }

@@ -32,7 +32,7 @@
     <div class="nav-actions">
       <button class="icon-btn" id="langBtn" aria-label="Switch language">EN</button>
       <button class="icon-btn" id="themeBtn" aria-label="Toggle dark / light mode"><i data-lucide="moon"></i></button>
-      <button class="btn btn-primary btn-sm" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Generate ATS CV</span></button>
+      <button class="btn btn-primary btn-sm" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Download CV</span></button>
     </div>
   </div>
 </header>
@@ -49,7 +49,7 @@
         <p class="headline"><i data-lucide="sparkles"></i><span id="headline"></span></p>
         <p class="lead" data-i18n="hero.lead">Saya membangun integrasi API yang aman, orkestrasi AI agent, dan platform BI yang mengubah data operasional menjadi keputusan.</p>
         <div class="hero-cta">
-          <button class="btn btn-primary" data-open-cv><i data-lucide="download"></i><span data-i18n="cta.cvLong">Generate / Download ATS CV</span></button>
+          <button class="btn btn-primary" data-open-cv><i data-lucide="download"></i><span data-i18n="cta.cvLong">Download CV</span></button>
           <a class="btn btn-ghost" href="#projects"><i data-lucide="rocket"></i><span data-i18n="cta.projects">Lihat Studi Kasus</span></a>
         </div>
         <ul class="stats" id="stats"></ul>
@@ -231,7 +231,7 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
         <div class="hero-cta center">
           <a class="btn btn-primary" id="mailBtn" href="#"><i data-lucide="mail"></i><span>Email</span></a>
           <a class="btn btn-ghost" id="liBtn" href="#" target="_blank" rel="noopener"><i data-lucide="linkedin"></i><span>LinkedIn</span></a>
-          <button class="btn btn-ghost" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Generate ATS CV</span></button>
+          <button class="btn btn-ghost" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Download CV</span></button>
         </div>
       </div>
     </div>
@@ -244,30 +244,22 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
 <div class="modal" id="cvModal" role="dialog" aria-modal="true" aria-labelledby="cvTitle" hidden>
   <div class="modal-box">
     <div class="modal-head">
-      <h2 id="cvTitle"><i data-lucide="file-text"></i><span data-i18n="cv.title">Generator CV ATS</span></h2>
+      <h2 id="cvTitle"><i data-lucide="file-text"></i><span data-i18n="cv.title">Download CV</span></h2>
       <button class="icon-btn" id="cvClose" aria-label="Close"><i data-lucide="x"></i></button>
     </div>
     <div class="cv-layout">
       <form class="cv-controls" id="cvForm" onsubmit="return false">
-        <label><span data-i18n="cv.role">Target role</span>
-          <select id="cvRole">
-            <option value="int">Integration &amp; AI Developer</option>
-            <option value="bi">BI &amp; Data Engineer</option>
-          </select>
-        </label>
-        <label><span data-i18n="cv.titleLbl">Judul di CV</span><input id="cvHeadline" type="text"></label>
-        <label><span data-i18n="cv.lang">Bahasa CV</span>
-          <select id="cvLang"><option value="en">English</option><option value="id">Bahasa Indonesia</option></select>
-        </label>
-        <label><span data-i18n="cv.jd">Tempel Job Description (opsional)</span>
-          <textarea id="cvJD" rows="7" data-i18n-ph="cv.jdPh" placeholder="Tempel teks lowongan di sini — urutan keahlian, proyek, dan pengalaman akan menyesuaikan kata kunci."></textarea>
-        </label>
-        <div class="match" id="cvMatch" aria-live="polite"></div>
+        <p class="cv-role"><i data-lucide="badge-check"></i>Integration Engineer | AI Engineer</p>
+        <fieldset class="lang-pick">
+          <legend data-i18n="cv.lang">Bahasa CV</legend>
+          <label><input type="radio" name="cvLang" value="id"><span><b class="lang-code">ID</b>Bahasa Indonesia</span></label>
+          <label><input type="radio" name="cvLang" value="en"><span><b class="lang-code">EN</b>English</span></label>
+        </fieldset>
         <div class="cv-btns">
-          <button type="button" class="btn btn-primary" id="cvPdf"><i data-lucide="download"></i><span data-i18n="cv.pdf">Export PDF</span></button>
+          <button type="button" class="btn btn-primary" id="cvPdf"><i data-lucide="download"></i><span data-i18n="cv.pdf">Download PDF</span></button>
           <button type="button" class="btn btn-ghost" id="cvDocx"><i data-lucide="file-text"></i><span data-i18n="cv.docx">Download .docx</span></button>
         </div>
-        <p class="muted small" data-i18n="cv.hint">PDF: pilih "Save as PDF" di dialog print. Semua diproses di browser, tanpa server.</p>
+        <p class="muted small" data-i18n="cv.hint">Format ATS-friendly. Untuk PDF, pilih "Save as PDF" di dialog print.</p>
       </form>
       <div class="cv-paper-wrap"><article class="cv-paper" id="cvDoc"></article></div>
     </div>

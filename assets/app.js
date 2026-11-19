@@ -65,7 +65,7 @@
   // ---------- i18n ----------
   const EN = {
     "nav.about": "About", "nav.exp": "Experience", "nav.projects": "Projects", "nav.skills": "Skills", "nav.contact": "Contact",
-    "cta.cv": "Generate ATS CV", "cta.cvLong": "Generate / Download ATS CV", "cta.projects": "View Case Studies",
+    "cta.cv": "Download CV", "cta.cvLong": "Download CV", "cta.projects": "View Case Studies",
     "hero.hi": "Hi, I'm", "hero.lead": "I build secure API integrations, AI-agent orchestration and BI platforms that turn operational data into decisions.",
     "about.focus": "Focus", "about.f1": "API &amp; Integration Engineering", "about.f2": "AI Agent Orchestration (Boomi)", "about.f3": "Business Intelligence &amp; Data Modeling", "about.f4": "Data Engineering / ETL",
     "exp.earlier": "Earlier experience",
@@ -88,9 +88,8 @@
     "contact.text": "Open to API / Integration Engineering, Data Engineering and Business Intelligence roles.",
     "contact.title": "Let's talk!", "hero.status": "Open to work · Jakarta, ID",
     "foot": "Made with 💚 and lots of ☕ · GitHub Pages",
-    "cv.title": "ATS CV Generator", "cv.role": "Target role", "cv.titleLbl": "Title on CV", "cv.lang": "CV language",
-    "cv.jd": "Paste a Job Description (optional)", "cv.jdPh": "Paste the job posting here — skills, projects and bullets are re-ordered to match its keywords.",
-    "cv.pdf": "Export PDF", "cv.docx": "Download .docx", "cv.hint": "PDF: choose \"Save as PDF\" in the print dialog. Everything runs in your browser — no server.",
+    "cv.title": "Download CV", "cv.lang": "CV language",
+    "cv.pdf": "Download PDF", "cv.docx": "Download .docx", "cv.hint": "ATS-friendly format. For PDF, choose \"Save as PDF\" in the print dialog.",
   };
   const ID = {};
   document.querySelectorAll("[data-i18n]").forEach((el) => (ID[el.dataset.i18n] = el.innerHTML));
@@ -168,7 +167,11 @@
   // ---------- CV modal ----------
   const modal = $("#cvModal");
   let lastFocus = null, cv = null;
-  function opts() { return { role: $("#cvRole").value, jd: $("#cvJD").value, l: $("#cvLang").value, headline: $("#cvHeadline").value.trim() }; }
+  // The CV is fixed to the Integration Engineer | AI Engineer profile; visitors only pick the language.
+  const CV_ROLE = "int";
+  const cvLangInputs = [...document.querySelectorAll('input[name="cvLang"]')];
+  const cvLang = () => (cvLangInputs.find((i) => i.checked) || { value: lang }).value;
+  function opts() { return { role: CV_ROLE, jd: "", l: cvLang(), headline: "" }; }
 
   function renderCV() {
     cv = buildCV(opts());
@@ -183,18 +186,15 @@
       ${sec(H.proj, cv.projects.map((p) => `<div class="job"><p class="jt"><strong>${h(p.name)}</strong></p><p class="jm">${h(p.period)} | ${h(H.stack)}: ${h(p.stack)}</p><ul>${li(p.bullets)}</ul></div>`).join(""))}
       ${sec(H.edu, cv.education.map((e) => `<p><strong>${h(e.degree)}</strong>, ${h(e.school)} | ${h(e.period)}</p>`).join(""))}
       ${sec(H.cert, `<ul>${li(cv.certifications)}</ul>`)}`;
-    const jd = $("#cvJD").value.trim();
-    $("#cvMatch").innerHTML = !jd ? "" : cv.matchedKeys.length
-      ? `<b>${cv.matchedKeys.length}</b> ${lang === "en" ? "keywords matched" : "kata kunci cocok"}: ${cv.matchedKeys.map((k) => `<span>${h(k)}</span>`).join("")}`
-      : (lang === "en" ? "No known keywords matched — using the role default." : "Belum ada kata kunci yang cocok — memakai urutan default role.");
   }
 
+  let cvLangTouched = false;
   function openCV() {
     lastFocus = document.activeElement;
-    if (!$("#cvHeadline").dataset.touched) $("#cvHeadline").value = P.roles[$("#cvRole").value].title;
-    $("#cvLang").value = $("#cvLang").dataset.touched ? $("#cvLang").value : lang;
+    if (!cvLangTouched) cvLangInputs.forEach((i) => (i.checked = i.value === lang)); // default to the site language
     modal.hidden = false; document.body.classList.add("noscroll");
-    renderCV(); $("#cvRole").focus();
+    renderCV();
+    (cvLangInputs.find((i) => i.checked) || $("#cvPdf")).focus();
   }
   function closeCV() {
     modal.hidden = true; document.body.classList.remove("noscroll");
@@ -205,12 +205,9 @@
   $("#cvClose").onclick = closeCV;
   modal.addEventListener("click", (e) => { if (e.target === modal) closeCV(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) closeCV(); });
-  $("#cvRole").onchange = () => { if (!$("#cvHeadline").dataset.touched) $("#cvHeadline").value = P.roles[$("#cvRole").value].title; renderCV(); };
-  $("#cvHeadline").oninput = (e) => { e.target.dataset.touched = "1"; renderCV(); };
-  $("#cvLang").onchange = (e) => { e.target.dataset.touched = "1"; renderCV(); };
-  let tmr; $("#cvJD").oninput = () => { clearTimeout(tmr); tmr = setTimeout(renderCV, 250); };
+  cvLangInputs.forEach((i) => i.addEventListener("change", () => { cvLangTouched = true; renderCV(); }));
 
-  const fileBase = () => `Hadi_Saputra_CV_${$("#cvRole").value === "bi" ? "BI_Data_Engineer" : "Integration_AI_Developer"}`;
+  const fileBase = () => `Hadi_Saputra_CV_Integration_AI_Engineer_${cvLang().toUpperCase()}`;
 
   $("#cvPdf").onclick = () => {
     const old = document.title;

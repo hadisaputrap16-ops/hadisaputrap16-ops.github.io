@@ -60,11 +60,11 @@ window.PROFILE = {
       },
     },
     int: {
-      label: { en: "Integration & AI Developer", id: "Integration & AI Developer" },
-      title: "Integration & AI Developer",
+      label: { en: "Integration Engineer & AI Engineer", id: "Integration Engineer & AI Engineer" },
+      title: "Integration Engineer | AI Engineer",
       summary: {
-        en: "Integration & AI Developer with 5+ years delivering enterprise APIs. I have shipped 60+ banking API integrations (SNAP BI, BI-FAST, BRANKAS) on Axway API Gateway. More recently I built an AI-powered fraud detection platform on Boomi Integration and Agent Garden, with Neon PostgreSQL behind it. I build secure APIs with signing, encryption and audit trails, design error-tolerant orchestration, and add AI agents with a human in the loop.",
-        id: "Integration & AI Developer dengan pengalaman 5+ tahun membangun API enterprise. Saya telah menyelesaikan 60+ integrasi API perbankan (SNAP BI, BI-FAST, BRANKAS) di Axway API Gateway. Terakhir, saya membangun platform deteksi fraud berbasis AI di atas Boomi Integration dan Agent Garden, dengan Neon PostgreSQL sebagai basis datanya. Saya membangun API yang aman dengan signing, enkripsi, dan audit trail, merancang orkestrasi yang tahan gangguan, dan memasang agen AI dengan human-in-the-loop.",
+        en: "Integration Engineer and AI Engineer with 5+ years delivering enterprise APIs. I have shipped 60+ banking API integrations (SNAP BI, BI-FAST, BRANKAS) on Axway API Gateway. More recently I built an AI-powered fraud detection platform on Boomi Integration and Agent Garden, with Neon PostgreSQL behind it. I build secure APIs with signing, encryption and audit trails, design error-tolerant orchestration, and add AI agents with a human in the loop.",
+        id: "Integration Engineer dan AI Engineer dengan pengalaman 5+ tahun membangun API enterprise. Saya telah menyelesaikan 60+ integrasi API perbankan (SNAP BI, BI-FAST, BRANKAS) di Axway API Gateway. Terakhir, saya membangun platform deteksi fraud berbasis AI di atas Boomi Integration dan Agent Garden, dengan Neon PostgreSQL sebagai basis datanya. Saya membangun API yang aman dengan signing, enkripsi, dan audit trail, merancang orkestrasi yang tahan gangguan, dan memasang agen AI dengan human-in-the-loop.",
       },
     },
   },
