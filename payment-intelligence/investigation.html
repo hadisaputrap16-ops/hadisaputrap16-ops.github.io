@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investigation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Investigation</h1>
+  <p class="sub">Transaction details, risk indicators (deterministic rules + AI), the agent's explanation, alerts and human approval.</p>
+  <form class="card row" id="search">
+    <label style="flex:1;min-width:220px">Transaction ID, investigation ref or account number <input name="tx" placeholder="TX-… / INV-… / 1234567890" required></label>
+    <button class="primary" type="submit" style="align-self:end">Search</button>
+  </form>
+  <div id="case" style="margin-top:16px"></div>
+  <section class="card" style="margin-top:16px">
+    <div class="row" style="justify-content:space-between">
+      <div class="row" style="gap:8px;align-items:baseline"><h2 style="margin:0" id="queue-title">Case queue</h2>
+        <button type="button" id="clear-search" hidden>Show all</button></div>
+      <label style="min-width:220px">Filter
+        <select id="filter"><option value="">All classifications</option>
+          <option value="POTENTIAL_FRAUD">Potential fraud</option><option value="POTENTIAL_ILLEGAL_GAMBLING">Potential illegal gambling</option>
+          <option value="INSUFFICIENT_DATA">Insufficient data</option><option value="LEGITIMATE">Legitimate</option></select></label>
+    </div>
+    <div class="table-wrap" id="queue" style="margin-top:8px"></div>
+  </section>
+</main>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+<script>
+const { h } = PI;
+PI.nav("investigation.html");
+const kv = (obj, keys) => h("dl", { class: "kv" }, keys.flatMap(([k, label, fmt]) => [h("dt", {}, label), h("dd", {}, obj && obj[k] != null ? (fmt ? fmt(obj[k]) : String(obj[k])) : "–")]));
+
+async function openCase(tx) {
+  const box = document.getElementById("case");
+  box.replaceChildren(h("div", { class: "card" }, h("span", { class: "spinner" }), " Loading ", tx, "…"));
+  history.replaceState(null, "", "?tx=" + encodeURIComponent(tx));
+  const d = await PI.query("investigation", tx.startsWith("INV-") ? { investigation_ref: tx } : { transaction_id: tx });
+  if (!d.ok) return box.replaceChildren(PI.errorBox(d.error || "Case not found"));
+  const t = d.transaction, dec = (d.decisions || [])[0];
+  const parts = [];
+  parts.push(h("div", { class: "grid two" },
+    h("section", { class: "card" }, h("h2", {}, "Transaction ", h("span", { class: "mono" }, t.transaction_id)),
+      kv(t, [["payment_id", "Payment ID (token)"], ["amount", "Amount", PI.idr], ["channel", "Channel"], ["merchant_id", "Merchant"],
+             ["source_account", "Source account"], ["counterparty_account", "Counterparty"], ["description", "Description"], ["device_id", "Device"], ["ip_country", "IP country"],
+             ["transaction_time", "Time", PI.when], ["status", "Status"]])),
+    h("section", { class: "card" }, h("h2", {}, "Decision"),
+      dec ? h("div", {},
+        h("div", { class: "row" }, PI.classBadge(dec.final_classification), PI.actionBadge(dec.recommended_action), h("span", { class: "badge" }, "Risk " + dec.final_risk_score)),
+        h("p", {}, dec.explanation),
+        kv(dec, [["investigation_ref", "Investigation ref"], ["ai_classification", "AI classification"], ["ai_risk_score", "AI risk score"],
+                 ["ai_confidence", "AI confidence", (v) => Math.round(v * 100) + "%"], ["ai_recommended_action", "AI recommended"],
+                 ["rule_score", "Rule score"], ["rule_override", "Rule override", (v) => v ? "yes" : "no"],
+                 ["approval_status", "Approval"], ["approved_by", "Reviewed by"], ["created_at", "Decided", PI.when]]))
+        : h("p", { class: "muted" }, "No decision recorded yet."))));
+  if (dec && dec.approval_status === "PENDING") parts.push(approvalPanel(t.transaction_id));
+  parts.push(h("section", { class: "card", style: "margin-top:16px" }, h("h2", {}, "Risk indicators"),
+    h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, ["Source", "Code", "Category", "Weight", "Description"].map((x) => h("th", {}, x)))),
+      h("tbody", {}, (d.risk_indicators || []).map((r) => h("tr", {}, h("td", {}, r.source), h("td", { class: "mono" }, r.indicator_code),
+        h("td", {}, r.category), h("td", {}, r.weight), h("td", {}, r.description))))))));
+  parts.push(h("div", { class: "grid two", style: "margin-top:16px" },
+    h("section", { class: "card" }, h("h2", {}, "Payer profile"),
+      d.payer_profile ? kv(d.payer_profile, [["holder_alias", "Alias"], ["segment", "Segment"], ["kyc_level", "KYC level"], ["home_city", "City"],
+        ["home_country", "Country"], ["account_opened_on", "Opened"], ["typical_monthly_idr", "Typical monthly", PI.idr], ["risk_tier", "Risk tier"]])
+        : h("p", { class: "muted" }, "Payment ID not found in payment_identity."),
+      h("h2", { style: "margin-top:16px" }, "90-day history"), kv(d.history, [["transactions_90d", "Transactions"], ["avg_amount_90d", "Average", PI.idr], ["max_amount_90d", "Largest", PI.idr]])),
+    h("section", { class: "card" }, h("h2", {}, "Merchant & watchlist"),
+      d.merchant ? kv(d.merchant, [["merchant_name", "Name"], ["mcc", "MCC"], ["category", "Category"], ["country", "Country"], ["license_status", "License"], ["is_gambling_flagged", "Gambling flag", (v) => v ? "yes" : "no"]])
+        : h("p", { class: "muted" }, "No merchant on this transaction."),
+      h("h2", { style: "margin-top:16px" }, "Watchlist hits"),
+      (d.watchlist_hits || []).length ? h("ul", {}, d.watchlist_hits.map((w) => h("li", {}, h("b", {}, w.account_ref), ` · ${w.category} · ${w.severity} · ${w.reason}`)))
+        : h("p", { class: "muted" }, "None."))));
+  parts.push(h("section", { class: "card", style: "margin-top:16px" }, h("h2", {}, "Alert notifications"),
+    (d.notifications || []).length ? h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, ["Sent", "Channel", "Status", "Message SID", "Recipient", "Error"].map((x) => h("th", {}, x)))),
+      h("tbody", {}, d.notifications.map((n) => h("tr", {}, h("td", {}, PI.when(n.sent_at)), h("td", {}, n.channel || "–"), h("td", {}, PI.statusBadge(n.delivery_status)),
+        h("td", { class: "mono" }, n.message_sid || "–"), h("td", {}, n.recipient_masked || "–"), h("td", {}, n.error_message ? `${n.error_code || ""} ${n.error_message}` : "–"))))))
+      : h("p", { class: "muted" }, "No alert sent (only POTENTIAL_FRAUD and POTENTIAL_ILLEGAL_GAMBLING trigger an alert).")));
+  parts.push(h("section", { class: "card", style: "margin-top:16px" }, h("h2", {}, "Recent payer transactions"),
+    h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, ["Transaction", "Amount", "Channel", "Merchant / counterparty", "Description", "Time"].map((x) => h("th", {}, x)))),
+      h("tbody", {}, (d.recent_transactions || []).map((r) => h("tr", {}, h("td", { class: "mono" }, r.transaction_id), h("td", {}, PI.idr(r.amount)), h("td", {}, r.channel),
+        h("td", {}, r.merchant_id || r.counterparty_account || "–"), h("td", {}, r.description || "–"), h("td", {}, PI.when(r.transaction_time)))))))));
+  box.replaceChildren(...parts);
+}
+
+function approvalPanel(tx) {
+  const msg = h("div");
+  const reviewer = h("input", { required: true, maxlength: 80, placeholder: "Your name" });
+  const note = h("input", { maxlength: 500, placeholder: "Reason (optional)" });
+  const act = async (decision) => {
+    if (!reviewer.value.trim()) { msg.replaceChildren(PI.errorBox("Reviewer name is required.")); return reviewer.focus(); }
+    if (decision === "CONFIRM_BLOCK" && !confirm(`Confirm BLOCK of ${tx}? This is recorded against your name.`)) return;
+    const r = await PI.query("approve", { transaction_id: tx, decision, reviewer: reviewer.value, note: note.value });
+    if (!r.ok) return msg.replaceChildren(PI.errorBox(r.error || "Approval failed"));
+    openCase(tx); loadQueue();
+  };
+  return h("section", { class: "card", style: "margin-top:16px;border-color:var(--critical)" },
+    h("h2", {}, "⛔ Human approval required"),
+    h("p", {}, "The engine proposed BLOCK. Nothing is blocked until a named reviewer confirms."),
+    h("div", { class: "fields", style: "display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))" },
+      h("label", {}, "Reviewer", reviewer), h("label", {}, "Note", note)),
+    h("div", { class: "row", style: "margin-top:12px" },
+      h("button", { class: "danger", type: "button", onclick: () => act("CONFIRM_BLOCK") }, "Confirm block"),
+      h("button", { type: "button", onclick: () => act("RELEASE") }, "Release (do not block)")), msg);
+}
+
+let account = ""; // account-number search (source or counterparty)
+async function loadQueue() {
+  const d = await PI.query("transactions", { classification: document.getElementById("filter").value, account, limit: 50 });
+  const q = document.getElementById("queue");
+  document.getElementById("queue-title").textContent = account ? `Transactions for account ${account}` : "Case queue";
+  document.getElementById("clear-search").hidden = !account;
+  if (!d.ok) return q.replaceChildren(PI.errorBox(d.error || "Could not load queue"));
+  if (!d.items.length) return q.replaceChildren(h("p", { class: "muted" }, account
+    ? `No analysed transactions for account ${account}. Accounts are recorded from the source account field (SNAP sourceAccountNo) and the counterparty account.`
+    : "No transactions yet."));
+  q.replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, ["Transaction", "From → to", "Classification", "Risk", "Action", "Status", "Amount", "When"].map((x) => h("th", {}, x)))),
+    h("tbody", {}, d.items.map((r) => h("tr", {},
+      h("td", {}, h("a", { href: "#", onclick: (e) => { e.preventDefault(); openCase(r.transaction_id); scrollTo(0, 0); } }, r.transaction_id), r.live ? null : h("span", { class: "muted" }, " (seed)")),
+      h("td", { class: "mono" }, `${r.source_account || "–"} → ${r.counterparty_account || r.merchant_id || "–"}`),
+      h("td", {}, r.classification ? PI.classBadge(r.classification) : "–"), h("td", {}, r.risk_score ?? "–"),
+      h("td", {}, r.action ? PI.actionBadge(r.action) : "–"), h("td", {}, r.status), h("td", {}, PI.idr(r.amount)), h("td", {}, PI.when(r.created_at)))))));
+}
+document.getElementById("search").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = e.target.tx.value.trim().toUpperCase();
+  if (/^(TX|INV)-/.test(v)) { account = ""; openCase(v); loadQueue(); }
+  else { account = v; document.getElementById("case").replaceChildren(); loadQueue(); }
+});
+document.getElementById("clear-search").addEventListener("click", () => { account = ""; document.getElementById("search").tx.value = ""; loadQueue(); });
+document.getElementById("filter").addEventListener("change", loadQueue);
+const initial = new URLSearchParams(location.search).get("tx");
+if (initial) { document.getElementById("search").tx.value = initial; openCase(initial); }
+loadQueue();
+</script>
+</body>
+</html>

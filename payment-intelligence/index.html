@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment Intelligence Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Dashboard</h1>
+  <p class="sub">Live from PostgreSQL via the Boomi API. <span id="gen" class="muted"></span></p>
+  <div id="err"></div>
+  <section class="grid kpis" id="kpis" aria-label="Key figures"></section>
+  <div class="grid two" style="margin-top:16px">
+    <section class="card">
+      <h2>Risk trend: decisions per day by classification (14 days)</h2>
+      <div class="legend" id="legend"></div>
+      <div class="chart" id="trend"></div>
+      <details class="table-view"><summary>Show as table</summary><div class="table-wrap" id="trend-table"></div></details>
+    </section>
+    <section class="card">
+      <h2>Fraud vs illegal gambling monitoring</h2>
+      <div id="classes"></div>
+      <h2 style="margin-top:20px">Top detected indicators</h2>
+      <div id="indicators"></div>
+    </section>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <h2>Most recent decisions</h2>
+    <div class="table-wrap" id="recent"></div>
+  </section>
+</main>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+<script>
+const { h, CLASSES } = PI;
+PI.nav("index.html");
+const ORDER = ["LEGITIMATE", "POTENTIAL_FRAUD", "POTENTIAL_ILLEGAL_GAMBLING", "INSUFFICIENT_DATA"];
+
+function kpi(label, value, hint) {
+  return h("div", { class: "card kpi" }, h("div", { class: "label" }, label), h("div", { class: "value" }, value), hint ? h("div", { class: "hint" }, hint) : null);
+}
+
+function trendChart(rows) {
+  const W = 640, H = 240, L = 32, B = 26, T = 8, gap = 2;
+  const max = Math.max(1, ...rows.map((r) => ORDER.reduce((s, k) => s + (r[k] || 0), 0)));
+  const nice = Math.ceil(max / 5) * 5;
+  const bw = (W - L) / rows.length;
+  const y = (v) => T + (H - T - B) * (1 - v / nice);
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (tag, a) => { const e = document.createElementNS(ns, tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Stacked bar chart of daily decisions by classification" });
+  for (let i = 0; i <= 5; i++) {
+    const v = (nice / 5) * i, yy = y(v);
+    svg.append(el("line", { x1: L, x2: W, y1: yy, y2: yy, class: "grid-line" }));
+    const t = el("text", { x: L - 6, y: yy + 4, "text-anchor": "end" }); t.textContent = v; svg.append(t);
+  }
+  const wrap = document.getElementById("trend");
+  const tip = h("div", { class: "tooltip", hidden: true });
+  rows.forEach((r, i) => {
+    const x = L + i * bw + bw * 0.18, w = bw * 0.64;
+    let acc = 0;
+    const segs = ORDER.filter((k) => r[k] > 0);
+    segs.forEach((k, j) => {
+      const y0 = y(acc), y1 = y(acc + r[k]);
+      acc += r[k];
+      const top = j === segs.length - 1;
+      const hgt = Math.max(0, y0 - y1 - (j > 0 ? gap : 0));
+      // rounded data-end on the top segment only, anchored square at the baseline
+      const rx = top ? Math.min(4, w / 2, hgt) : 0;
+      const yTop = y1, yBot = y1 + hgt;
+      const d = rx ? `M${x},${yBot} V${yTop + rx} Q${x},${yTop} ${x + rx},${yTop} H${x + w - rx} Q${x + w},${yTop} ${x + w},${yTop + rx} V${yBot} Z`
+                   : `M${x},${yBot} V${yTop} H${x + w} V${yBot} Z`;
+      svg.append(el("path", { d, style: `fill:${CLASSES[k].color}` }));
+    });
+    if (i % 2 === 0 || rows.length <= 7) {
+      const t = el("text", { x: x + w / 2, y: H - 8, "text-anchor": "middle" }); t.textContent = r.day.slice(5); svg.append(t);
+    }
+    const hit = el("rect", { x: L + i * bw, y: T, width: bw, height: H - T - B, fill: "transparent", tabindex: 0,
+                             "aria-label": `${r.day}: ` + ORDER.map((k) => `${CLASSES[k].label} ${r[k] || 0}`).join(", ") });
+    const show = (ev) => {
+      tip.replaceChildren(h("strong", {}, r.day),
+        ...ORDER.map((k) => h("div", { class: "t-row" }, h("span", { class: "row", style: "gap:6px" }, h("span", { class: "swatch", style: `background:${CLASSES[k].color}` }), CLASSES[k].label), h("b", {}, r[k] || 0))),
+        h("div", { class: "t-row muted" }, "Avg risk score", h("span", {}, r.avg_risk ?? "–")));
+      tip.hidden = false;
+      const box = wrap.getBoundingClientRect(), px = (x + w / 2) / W * box.width;
+      tip.style.left = Math.min(Math.max(0, px - 90), box.width - 190) + "px";
+      tip.style.top = "0px";
+    };
+    hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+    hit.addEventListener("mouseleave", () => tip.hidden = true); hit.addEventListener("blur", () => tip.hidden = true);
+    svg.append(hit);
+  });
+  wrap.replaceChildren(svg, tip);
+  document.getElementById("legend").replaceChildren(...ORDER.map((k) => h("span", {}, h("span", { class: "swatch", style: `background:${CLASSES[k].color}` }), CLASSES[k].label)));
+  document.getElementById("trend-table").replaceChildren(h("table", {},
+    h("thead", {}, h("tr", {}, h("th", {}, "Day"), ORDER.map((k) => h("th", {}, CLASSES[k].label)), h("th", {}, "Avg risk"))),
+    h("tbody", {}, rows.map((r) => h("tr", {}, h("td", {}, r.day), ORDER.map((k) => h("td", {}, r[k] || 0)), h("td", {}, r.avg_risk ?? "–"))))));
+}
+
+function hbars(target, items) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  document.getElementById(target).replaceChildren(...items.map((i) =>
+    h("div", { class: "hbar" }, h("span", { class: "row", style: "gap:6px" }, i.color ? h("span", { class: "swatch", style: `background:${i.color}` }) : null, i.label),
+      h("div", { class: "track", title: `${i.label}: ${i.value}` }, h("div", { class: "fill", style: `width:${(i.value / max) * 100}%;background:${i.color || "var(--c-legit)"}` })),
+      h("b", { style: "text-align:right" }, i.value))));
+}
+
+async function load() {
+  const d = await PI.query("dashboard");
+  if (!d.ok) return document.getElementById("err").replaceChildren(PI.errorBox("Could not load dashboard: " + (d.error || "unknown error")));
+  const t = d.totals, c = d.by_classification || {};
+  document.getElementById("gen").textContent = "Updated " + PI.when(d.generated_at);
+  document.getElementById("kpis").replaceChildren(
+    kpi("Transactions analyzed", t.analyzed, `${t.analyzed_live} live through the AI agent`),
+    kpi("Potential fraud", c.POTENTIAL_FRAUD || 0, PI.compactIdr(d.amount_at_risk_idr.fraud) + " at risk"),
+    kpi("Potential illegal gambling", c.POTENTIAL_ILLEGAL_GAMBLING || 0, PI.compactIdr(d.amount_at_risk_idr.gambling) + " at risk"),
+    kpi("Average risk score", t.avg_risk_score ?? "–", "0 = safe · 100 = critical"),
+    kpi("Alerts sent", t.alerts_sent, `${t.alerts_failed} failed`),
+    kpi("Blocks awaiting approval", t.pending_approvals, "human-in-the-loop"));
+  trendChart(d.trend_14d || []);
+  hbars("classes", ORDER.map((k) => ({ label: CLASSES[k].label, value: c[k] || 0, color: CLASSES[k].color })));
+  hbars("indicators", (d.top_indicators || []).map((i) => ({ label: i.code, value: i.count })));
+  document.getElementById("recent").replaceChildren(h("table", {},
+    h("thead", {}, h("tr", {}, ["Transaction", "Classification", "Risk", "Action", "Amount", "Time"].map((x) => h("th", {}, x)))),
+    h("tbody", {}, (d.recent || []).map((r) => h("tr", {},
+      h("td", {}, h("a", { href: "investigation.html?tx=" + encodeURIComponent(r.transaction_id) }, r.transaction_id), r.live ? null : h("span", { class: "muted" }, " (seed)")),
+      h("td", {}, PI.classBadge(r.classification)), h("td", {}, r.risk_score), h("td", {}, PI.actionBadge(r.action)),
+      h("td", {}, PI.idr(r.amount)), h("td", {}, PI.when(r.created_at)))))));
+}
+load();
+</script>
+</body>
+</html>

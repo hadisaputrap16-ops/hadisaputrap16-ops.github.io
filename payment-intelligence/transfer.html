@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transfer (SNAP)</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Transfer (SNAP)</h1>
+  <p class="sub">An intrabank transfer sent the way a partner bank would send it: as a <b>SNAP Transfer Intrabank</b> request, signed with SHA256withRSA and encrypted with RSA-OAEP + AES-256-GCM. Boomi verifies and decrypts it, then <b>Payment Intelligence Risk Analyst</b> (the AI agent) and the deterministic rules decide whether the transfer goes through, is held for review or is blocked. The response comes back encrypted and signed too.</p>
+  <section class="card">
+    <h2>Demo scenarios</h2>
+    <div class="row presets" id="presets"></div>
+    <p class="muted" style="margin:8px 0 0">Signing and encryption happen in the portal's server, which acts as the partner bank's backend. Private keys never reach the browser.</p>
+  </section>
+  <form class="card" id="form" style="margin-top:16px">
+    <h2>Transfer</h2>
+    <div class="fields">
+      <label>Source account <input name="sourceAccountNo" required maxlength="32" placeholder="1234567890"></label>
+      <label>Beneficiary account <input name="beneficiaryAccountNo" required maxlength="32" placeholder="8881234567"></label>
+      <label>Amount (IDR) <input name="amount" type="number" min="1" step="1" required></label>
+      <label>Payer payment ID (tokenized) <input name="paymentId" required placeholder="PID-TKN-7Q2M9A"></label>
+      <label>Device ID <input name="deviceId" placeholder="optional"></label>
+      <label>IP country <input name="ipCountry" maxlength="2" placeholder="ID"></label>
+      <label>Merchant ID <input name="merchantId" placeholder="optional"></label>
+      <label>Partner reference no. <input name="partnerReferenceNo" required pattern="[A-Za-z0-9-]{4,40}"></label>
+    </div>
+    <label style="margin-top:12px">Remark <textarea name="remark" maxlength="280"></textarea></label>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" type="submit" id="submit">Send transfer</button>
+      <span id="busy" class="muted" hidden><span class="spinner"></span> Signing, encrypting, running Boomi + AI agent (usually 10–40 s)…</span>
+    </div>
+  </form>
+  <section id="result" style="margin-top:16px" aria-live="polite"></section>
+</main>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+<script>
+const { h } = PI;
+PI.nav("transfer.html");
+const newRef = () => "SNAP" + new Date().toISOString().replace(/\D/g, "").slice(2, 14) + "-" + Math.random().toString(36).slice(2, 5).toUpperCase();
+const SCENARIOS = {
+  "Rent payment (normal)": { sourceAccountNo: "1234567890", beneficiaryAccountNo: "7770001122", amount: 3500000, paymentId: "PID-TKN-7Q2M9A", deviceId: "DEV-A1-ANDROID", ipCountry: "ID", remark: "Bayar kos bulan November" },
+  "Prize scam (fraud)": { sourceAccountNo: "1234567890", beneficiaryAccountNo: "ACC-SCAM-0099", amount: 18500000, paymentId: "PID-TKN-2B6N8D", deviceId: "DEV-NEW-9931", ipCountry: "KH", remark: "Transfer segera untuk verifikasi hadiah undian" },
+  "Slot deposit (gambling)": { sourceAccountNo: "5550001234", beneficiaryAccountNo: "9990088123", amount: 500000, paymentId: "PID-TKN-9X3L5C", merchantId: "MRC-GCR088", deviceId: "DEV-C3-ANDROID", ipCountry: "ID", remark: "depo slot gacor maxwin" },
+  "Money mule (block proposal)": { sourceAccountNo: "4440009876", beneficiaryAccountNo: "ACC-MULE-0001", amount: 95000000, paymentId: "PID-TKN-0P2Y4U", deviceId: "DEV-X99-UNKNOWN", ipCountry: "KH", remark: "Urgent refund, kirim OTP setelah transfer" },
+};
+const form = document.getElementById("form");
+function fill(s) {
+  form.reset();
+  for (const [k, v] of Object.entries(s)) form[k].value = v;
+  form.partnerReferenceNo.value = newRef();
+}
+document.getElementById("presets").replaceChildren(...Object.entries(SCENARIOS).map(([name, s]) => h("button", { type: "button", onclick: () => fill(s) }, name)));
+fill(SCENARIOS["Rent payment (normal)"]);
+
+const OUTCOME = { // SNAP responseCode -> what happened to the transfer
+  "2001700": ["✓", "var(--good)", "Transfer approved"],
+  "2021700": ["◎", "var(--warning)", "Held for manual review"],
+  "4031703": ["⛔", "var(--critical)", "Blocked: suspected fraud"],
+};
+const outcome = (code, msg) => OUTCOME[code] || ["✕", "var(--critical)", "Rejected: " + (msg || "unknown error")];
+
+function step(ok, title, detail) {
+  return h("li", { class: "snap-step" },
+    h("span", { class: "snap-icon", style: `color:${ok ? "var(--good)" : "var(--critical)"}`, "aria-label": ok ? "passed" : "failed" }, ok ? "✓" : "✕"),
+    h("div", {}, h("div", { class: "snap-title" }, title), detail ? h("div", { class: "muted mono snap-detail" }, detail) : null));
+}
+
+function kvList(obj) {
+  return h("dl", { class: "kv" }, Object.entries(obj || {}).flatMap(([k, v]) => [h("dt", {}, k), h("dd", { class: "mono" }, v == null ? "–" : typeof v === "object" ? JSON.stringify(v) : String(v))]));
+}
+
+function render(r) {
+  const box = document.getElementById("result");
+  if (!r || r.ok === false) return box.replaceChildren(PI.errorBox("Transfer failed: " + (r?.error || "unknown error")));
+  const t = r.trace || {}, res = r.response || {}, ra = res.additionalInfo?.riskAssessment;
+  const [icon, color, label] = outcome(r.responseCode, r.responseMessage);
+  const authFailed = ["4011700", "4001701"].includes(r.responseCode);
+  const analysed = !!ra;
+
+  const decision = h("div", { class: "card" },
+    h("div", { class: "snap-outcome", style: `border-left-color:${color}` },
+      h("span", { class: "snap-outcome-icon", style: `color:${color}`, "aria-hidden": "true" }, icon),
+      h("div", {}, h("div", { class: "snap-outcome-label" }, label),
+        h("div", { class: "muted" }, h("span", { class: "mono" }, r.responseCode || "–"), " · ", r.responseMessage || "",
+          res.latestTransactionStatus ? ` · status ${res.latestTransactionStatus}` : ""))),
+    analysed ? [
+      h("h2", { style: "margin-top:16px" }, "AI decision"),
+      h("div", { class: "row", style: "justify-content:space-between" }, PI.classBadge(ra.classification), PI.actionBadge(ra.recommendedAction)),
+      h("div", { class: "row", style: "align-items:baseline;gap:16px;margin-top:12px" },
+        h("div", {}, h("div", { class: "score" }, ra.riskScore ?? "–"), h("div", { class: "muted" }, "risk score / 100")),
+        h("div", {}, h("div", { class: "score", style: "font-size:24px" }, ra.confidence == null ? "–" : Math.round(ra.confidence * 100) + "%"), h("div", { class: "muted" }, "AI confidence"))),
+      h("dl", { class: "kv", style: "margin-top:12px" },
+        h("dt", {}, "AI agent verdict"), h("dd", {}, ra.aiVerdict ? `${ra.aiVerdict.classification} · score ${ra.aiVerdict.riskScore ?? "–"} · ${ra.aiVerdict.recommendedAction} (${ra.aiVerdict.status})` : "–"),
+        h("dt", {}, "Rule score"), h("dd", {}, `${ra.ruleScore ?? "–"}${ra.ruleOverride ? " · rule override applied" : ""}`),
+        h("dt", {}, "Amount"), h("dd", {}, PI.idr(res.amount?.value)),
+        h("dt", {}, "From → to"), h("dd", { class: "mono" }, `${res.sourceAccountNo} → ${res.beneficiaryAccountNo}`),
+        h("dt", {}, "Alert"), h("dd", {}, res.additionalInfo?.notification?.status === "NOT_REQUIRED" ? "Not required" : PI.statusBadge(res.additionalInfo?.notification?.status)),
+        h("dt", {}, "Pattern"), h("dd", {}, !ra.pattern ? "–" : ra.pattern.confirmed ? `Confirmed (transfer #${ra.pattern.occurrence} to this beneficiary)` : `First occurrence: not classified as fraud${ra.pattern.guard_applied ? ` (AI + rules said ${ra.pattern.unguarded_classification})` : ""}`),
+        h("dt", {}, "Investigation"), h("dd", {}, ra.investigationRef ? h("a", { href: "investigation.html?tx=" + encodeURIComponent(res.referenceNo) }, ra.investigationRef) : "–"),
+        h("dt", {}, "Check later"), h("dd", {}, h("a", { href: `analyze.html?payment_id=${encodeURIComponent(form.paymentId.value.trim().toUpperCase())}&source_account=${encodeURIComponent(res.sourceAccountNo || "")}` }, "Transaction Analysis → payment ID + source account"))),
+      h("h2", { style: "margin-top:16px" }, "Detected indicators"), PI.chips(ra.indicators),
+      h("h2", { style: "margin-top:16px" }, "Explanation"), h("p", {}, ra.explanation),
+      ra.requiresHumanApproval ? h("div", { class: "notice" }, "Block proposed. A human reviewer must approve it on the Investigation page before the account is blocked.") : null,
+    ] : (res.additionalInfo?.errors ? h("ul", {}, res.additionalInfo.errors.map((e) => h("li", {}, e))) : null));
+
+  const rq = t.request || {}, rs = t.response || {};
+  const security = h("div", { class: "card" },
+    h("h2", {}, "SNAP security trail"),
+    h("ol", { class: "snap-steps" },
+      step(true, "Request signed by partner (SHA256withRSA)", rq.headers?.["X-SIGNATURE"]),
+      step(true, `Body encrypted for Boomi (RSA-OAEP-256 + AES-256-GCM, ${rq.body?.bytes ?? "?"} bytes)`, rq.body?.encryptedData),
+      step(!authFailed, authFailed ? "Boomi rejected the signature or payload" : "Boomi verified the signature and decrypted the body", `X-PARTNER-ID ${rq.headers?.["X-PARTNER-ID"] || "–"} · X-TIMESTAMP ${rq.headers?.["X-TIMESTAMP"] || "–"}`),
+      step(analysed, analysed ? "Risk analysis: AI agent + rules" : "Risk analysis not run", analysed ? `${ra.classification} → ${ra.recommendedAction}` : null),
+      step(!!rs.body?.encryptedData, `Response encrypted for partner (${rs.body?.bytes ?? "?"} bytes)`, rs.body?.encryptedData),
+      step(!!r.signatureValid, r.signatureValid ? "Response signature verified with Boomi's public key" : "Response signature NOT valid", rs.headers?.["X-SIGNATURE"]),
+      step(!!r.response && !r.decryptError, r.decryptError ? "Response could not be decrypted" : "Response decrypted by partner", `${((t.ms || 0) / 1000).toFixed(1)} s round trip · ${t.endpoint || ""}`)),
+    h("details", { style: "margin-top:12px" }, h("summary", {}, "Request headers & string to sign"),
+      kvList({ ...rq.headers, stringToSign: rq.stringToSign, encryptedKey: rq.body?.encryptedKey, iv: rq.body?.iv })),
+    h("details", {}, h("summary", {}, "Response headers & envelope"),
+      kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv })));
+
+  box.replaceChildren(h("div", { class: "grid two" }, decision, security));
+}
+
+form.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const f = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v).trim()]));
+  const info = { paymentId: f.paymentId.toUpperCase(), deviceId: f.deviceId || undefined, ipCountry: f.ipCountry ? f.ipCountry.toUpperCase() : undefined, merchantId: f.merchantId ? f.merchantId.toUpperCase() : undefined };
+  const now = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19) + "+07:00";
+  const snap = {
+    partnerReferenceNo: f.partnerReferenceNo.toUpperCase(),
+    amount: { value: Number(f.amount).toFixed(2), currency: "IDR" },
+    beneficiaryAccountNo: f.beneficiaryAccountNo.toUpperCase(), sourceAccountNo: f.sourceAccountNo.toUpperCase(),
+    transactionDate: now, remark: f.remark || undefined, additionalInfo: info,
+  };
+  const btn = document.getElementById("submit"), busy = document.getElementById("busy");
+  btn.disabled = true; busy.hidden = false;
+  try { render(await PI.post("/api/transfer", snap)); }
+  catch (e) { document.getElementById("result").replaceChildren(PI.errorBox("Network error: " + e.message)); }
+  finally { btn.disabled = false; busy.hidden = true; form.partnerReferenceNo.value = newRef(); }
+});
+</script>
+</body>
+</html>

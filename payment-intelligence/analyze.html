@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction Analysis</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Transaction Analysis</h1>
+  <p class="sub">Look up a SNAP transfer by payment ID and source account, or submit a payment. Boomi validates it, pulls context from PostgreSQL, asks the Agent Garden agent <b>Payment Intelligence Risk Analyst</b>, applies the deterministic rules, logs the decision and sends a WhatsApp alert for fraud or gambling.</p>
+  <form class="card" id="lookup">
+    <h2>Check a SNAP transaction</h2>
+    <p class="muted" style="margin:0 0 12px">Enter the payer's Payment ID and source account to see every SNAP transfer stored for them, with the AI decision and the repeat-pattern evidence behind it.</p>
+    <div class="fields">
+      <label>Payment ID (tokenized) <input name="payment_id" required placeholder="PID-TKN-2B6N8D"></label>
+      <label>Source account <input name="source_account" required maxlength="40" placeholder="1234567890"></label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" type="submit" id="lookupBtn">Check transactions</button>
+      <span id="lookupBusy" class="muted" hidden><span class="spinner"></span> Loading…</span>
+    </div>
+  </form>
+  <section id="lookupResult" style="margin-top:16px"></section>
+
+  <h2 style="margin-top:28px">Analyze a new transaction</h2>
+  <section class="card">
+    <h2>Demo scenarios</h2>
+    <div class="row presets" id="presets"></div>
+    <p class="muted" style="margin:8px 0 0">Payment IDs are simulated tokens (PID-TKN-…). Raw national ID numbers (NIK) are rejected by the API.</p>
+  </section>
+  <form class="card" id="form" style="margin-top:16px">
+    <h2>Transaction</h2>
+    <div class="fields">
+      <label>Transaction ID <input name="transaction_id" required pattern="TX-[A-Z0-9-]{4,40}"></label>
+      <label>Payment ID (tokenized) <input name="payment_id" required placeholder="PID-TKN-7Q2M9A"></label>
+      <label>Amount (IDR) <input name="amount" type="number" min="1" step="1" required></label>
+      <label>Channel
+        <select name="channel"><option>BANK_TRANSFER</option><option>QRIS</option><option>EWALLET</option><option>CARD</option><option>VIRTUAL_ACCOUNT</option></select></label>
+      <label>Merchant ID <input name="merchant_id" placeholder="MRC-SMB001 (optional)"></label>
+      <label>Source account <input name="source_account" placeholder="payer's account (optional)"></label>
+      <label>Counterparty account <input name="counterparty_account" placeholder="ACC-… (optional)"></label>
+      <label>Device ID <input name="device_id" placeholder="optional"></label>
+      <label>IP country <input name="ip_country" maxlength="2" placeholder="ID"></label>
+      <label>Transaction time <input name="transaction_time" type="datetime-local"></label>
+    </div>
+    <label style="margin-top:12px">Description <textarea name="description" maxlength="280"></textarea></label>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" type="submit" id="submit">Analyze transaction</button>
+      <span id="busy" class="muted" hidden><span class="spinner"></span> Running Boomi workflow + AI agent (usually 10–40 s)…</span>
+    </div>
+  </form>
+  <section id="result" style="margin-top:16px"></section>
+</main>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+<script>
+const { h } = PI;
+PI.nav("analyze.html");
+const newId = () => "TX-" + new Date().toISOString().replace(/\D/g, "").slice(0, 14) + "-" + Math.random().toString(36).slice(2, 5).toUpperCase();
+const SCENARIOS = {
+  "Legitimate grocery": { payment_id: "PID-TKN-7Q2M9A", amount: 420000, channel: "QRIS", merchant_id: "MRC-SMB001", device_id: "DEV-A1-ANDROID", ip_country: "ID", description: "Belanja bulanan" },
+  "Scam transfer (fraud)": { payment_id: "PID-TKN-2B6N8D", amount: 18500000, channel: "BANK_TRANSFER", counterparty_account: "ACC-SCAM-0099", device_id: "DEV-NEW-9931", ip_country: "KH", description: "Transfer segera untuk verifikasi hadiah undian" },
+  "Online slot deposit (gambling)": { payment_id: "PID-TKN-9X3L5C", amount: 500000, channel: "EWALLET", merchant_id: "MRC-GCR088", device_id: "DEV-C3-ANDROID", ip_country: "ID", description: "depo slot gacor maxwin" },
+  "Unknown payer (insufficient data)": { payment_id: "PID-TKN-ZZ00QX", amount: 1250000, channel: "BANK_TRANSFER" },
+  "Money-mule transfer (block proposal)": { payment_id: "PID-TKN-0P2Y4U", amount: 95000000, channel: "BANK_TRANSFER", counterparty_account: "ACC-MULE-0001", device_id: "DEV-X99-UNKNOWN", ip_country: "KH", description: "Urgent refund, kirim OTP setelah transfer" },
+};
+const form = document.getElementById("form");
+function fill(s) {
+  form.reset();
+  form.transaction_id.value = newId();
+  for (const [k, v] of Object.entries(s)) form[k].value = v;
+}
+document.getElementById("presets").replaceChildren(...Object.entries(SCENARIOS).map(([name, s]) => h("button", { type: "button", onclick: () => fill(s) }, name)));
+fill(SCENARIOS["Legitimate grocery"]);
+
+function renderResult(r, ms) {
+  const box = document.getElementById("result");
+  if (!r.ok && r.valid === false && r.errors) {
+    return box.replaceChildren(h("div", { class: "card" }, h("h2", {}, "Request rejected by validation"), h("ul", {}, r.errors.map((e) => h("li", {}, e)))));
+  }
+  if (!r.ok) return box.replaceChildren(PI.errorBox("Analysis failed: " + (r.error || "unknown error")));
+  const n = r.notification || {};
+  box.replaceChildren(h("div", { class: "grid two" },
+    h("div", { class: "card" },
+      h("div", { class: "row", style: "justify-content:space-between" }, PI.classBadge(r.classification), PI.actionBadge(r.recommended_action)),
+      h("div", { class: "row", style: "align-items:baseline;gap:16px;margin-top:12px" },
+        h("div", {}, h("div", { class: "score" }, r.risk_score), h("div", { class: "muted" }, "risk score / 100")),
+        h("div", {}, h("div", { class: "score", style: "font-size:24px" }, r.confidence == null ? "–" : Math.round(r.confidence * 100) + "%"), h("div", { class: "muted" }, "AI confidence"))),
+      h("h2", { style: "margin-top:16px" }, "Detected indicators"), PI.chips(r.detected_indicators),
+      h("h2", { style: "margin-top:16px" }, "Explanation"), h("p", {}, r.explanation),
+      r.requires_human_approval ? h("div", { class: "notice" }, "Block proposed. A human reviewer must approve it on the Investigation page before the account is blocked.") : null),
+    h("div", { class: "card" },
+      h("h2", {}, "Audit trail"),
+      h("dl", { class: "kv" },
+        h("dt", {}, "Investigation ref"), h("dd", {}, h("a", { href: "investigation.html?tx=" + encodeURIComponent(r.transaction_id) }, r.investigation_ref)),
+        h("dt", {}, "Transaction"), h("dd", { class: "mono" }, r.transaction_id),
+        h("dt", {}, "Transaction status"), h("dd", {}, r.transaction_status),
+        h("dt", {}, "AI verdict"), h("dd", {}, `${r.ai?.classification || "–"} · score ${r.ai?.risk_score ?? "–"} · ${r.ai?.recommended_action || "–"} (${r.ai?.status})`),
+        h("dt", {}, "Rule score"), h("dd", {}, `${r.rules?.rule_score}${r.rules?.override ? " · rule override applied" : ""}`),
+        h("dt", {}, "Alert" + (n.channel ? ` (${n.channel.toLowerCase()})` : "")), h("dd", {}, n.status === "NOT_REQUIRED" ? "Not required" : PI.statusBadge(n.status), n.message_sid ? h("div", { class: "mono" }, n.message_sid) : null,
+          n.error_message ? h("div", { class: "muted" }, `${n.error_code || ""} ${n.error_message}`) : null),
+        h("dt", {}, "Round trip"), h("dd", {}, (ms / 1000).toFixed(1) + " s")))));
+}
+
+// ── Lookup: SNAP transfers stored for one payer (payment ID + source account) ──
+const PATTERN_TEXT = (p) => !p ? "–" : p.confirmed
+  ? `Pattern confirmed (transfer #${p.occurrence} to this beneficiary)`
+  : `First occurrence (transfer #${p.occurrence ?? 1}): no repeated pattern`;
+function lookupItem(t) {
+  const s = t.snap || {}, p = s.pattern || null;
+  return h("div", { class: "card" },
+    h("div", { class: "row", style: "justify-content:space-between" },
+      h("div", { class: "row" }, PI.classBadge(t.classification), PI.actionBadge(t.action)),
+      h("span", { class: "mono muted" }, s.response_code ? `${s.response_code} · ${s.response_message}` : (t.snap ? s.status : "not a SNAP transfer"))),
+    h("div", { class: "row", style: "align-items:baseline;gap:16px;margin-top:12px" },
+      h("div", {}, h("div", { class: "score" }, t.risk_score ?? "–"), h("div", { class: "muted" }, "risk score / 100")),
+      h("div", {}, h("div", { class: "score", style: "font-size:24px" }, PI.idr(t.amount)), h("div", { class: "muted" }, PI.when(t.transaction_time)))),
+    h("dl", { class: "kv", style: "margin-top:12px" },
+      h("dt", {}, "Partner reference"), h("dd", { class: "mono" }, s.partner_reference_no || "–"),
+      h("dt", {}, "From → to"), h("dd", { class: "mono" }, `${t.source_account || "–"} → ${t.counterparty_account || t.merchant_id || "–"}`),
+      h("dt", {}, "Remark"), h("dd", {}, t.description || "–"),
+      h("dt", {}, "Decision method"), h("dd", {}, s.decision_method === "AI_RULES_PATTERN_GUARD" ? "AI agent + rules + pattern guard" : (s.decision_method || "AI agent + rules")),
+      h("dt", {}, "Pattern"), h("dd", {}, PATTERN_TEXT(p),
+        p?.guard_applied ? h("div", { class: "muted" }, `Guard applied: ${p.unguarded_classification} (score ${p.unguarded_risk_score}) was not confirmed by a pattern`) : null,
+        (p?.reasons || []).length ? h("ul", { style: "margin:4px 0 0 18px" }, p.reasons.map((x) => h("li", {}, x))) : null),
+      h("dt", {}, "AI agent verdict"), h("dd", {}, t.ai ? `${t.ai.classification || "–"} · score ${t.ai.risk_score ?? "–"} · ${t.ai.recommended_action || "–"} (${t.ai.status})` : "–"),
+      h("dt", {}, "Rule score"), h("dd", {}, t.rule_score ?? "–"),
+      h("dt", {}, "Investigation"), h("dd", {}, t.investigation_ref ? h("a", { href: "investigation.html?tx=" + encodeURIComponent(t.transaction_id) }, t.investigation_ref) : "Pending decision")),
+    t.indicators?.length ? [h("h2", { style: "margin-top:16px" }, "Detected indicators"), PI.chips(t.indicators)] : null,
+    t.explanation ? [h("h2", { style: "margin-top:16px" }, "Explanation"), h("p", {}, t.explanation)] : null);
+}
+const lookup = document.getElementById("lookup");
+lookup.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const payment_id = lookup.payment_id.value.trim().toUpperCase(), source_account = lookup.source_account.value.trim().toUpperCase();
+  const box = document.getElementById("lookupResult"), btn = document.getElementById("lookupBtn"), busy = document.getElementById("lookupBusy");
+  btn.disabled = true; busy.hidden = false;
+  try {
+    const r = await PI.query("transactions", { payment_id, source_account, limit: 20 });
+    if (!r.ok) return box.replaceChildren(PI.errorBox("Lookup failed: " + (r.error || "unknown error")));
+    const items = (r.items || []).filter((t) => t.payment_id === payment_id && t.source_account === source_account);
+    box.replaceChildren(
+      h("p", { class: "muted" }, items.length ? `${items.length} transaction${items.length > 1 ? "s" : ""} for ${payment_id} from account ${source_account} (newest first).` : ""),
+      ...(items.length ? items.map(lookupItem) : [h("div", { class: "card" }, `No transactions found for ${payment_id} from account ${source_account}.`)]));
+  } catch (e) { box.replaceChildren(PI.errorBox("Network error: " + e.message)); }
+  finally { btn.disabled = false; busy.hidden = true; }
+});
+const qs = new URLSearchParams(location.search);
+if (qs.get("payment_id") && qs.get("source_account")) {
+  lookup.payment_id.value = qs.get("payment_id"); lookup.source_account.value = qs.get("source_account"); lookup.requestSubmit();
+}
+
+form.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const body = Object.fromEntries([...new FormData(form)].filter(([, v]) => v !== ""));
+  if (body.amount) body.amount = Number(body.amount);
+  if (body.transaction_time) body.transaction_time = new Date(body.transaction_time).toISOString();
+  for (const k of ["transaction_id", "payment_id", "merchant_id", "counterparty_account", "source_account", "ip_country"]) if (body[k]) body[k] = body[k].toUpperCase();
+  const btn = document.getElementById("submit"), busy = document.getElementById("busy");
+  btn.disabled = true; busy.hidden = false;
+  const t0 = performance.now();
+  try { renderResult(await PI.post("/api/analyze", body), performance.now() - t0); }
+  catch (e) { document.getElementById("result").replaceChildren(PI.errorBox("Network error: " + e.message)); }
+  finally { btn.disabled = false; busy.hidden = true; form.transaction_id.value = newId(); }
+});
+</script>
+</body>
+</html>

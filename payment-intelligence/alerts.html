@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alert Monitoring</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Alert Monitoring</h1>
+  <p class="sub">Fraud and gambling alerts sent by the Boomi workflow (email via Send Notifications; earlier WhatsApp via Twilio), from <span class="mono">notification_logs</span>.</p>
+  <div class="row" style="margin-bottom:16px">
+    <button class="primary" id="refresh">Reload alerts</button>
+    <span id="msg" class="muted"></span>
+  </div>
+  <section class="grid kpis" id="stats" aria-label="Delivery status counts"></section>
+  <section class="card" style="margin-top:16px">
+    <h2>Notification history</h2>
+    <div class="table-wrap" id="list"></div>
+  </section>
+</main>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+<script>
+const { h } = PI;
+PI.nav("alerts.html");
+async function load() {
+  const d = await PI.query("alerts");
+  if (!d.ok) return document.getElementById("list").replaceChildren(PI.errorBox(d.error || "Could not load alerts"));
+  const stats = Object.entries(d.stats || {});
+  document.getElementById("stats").replaceChildren(...(stats.length ? stats : [["none yet", 0]]).map(([s, c]) =>
+    h("div", { class: "card kpi" }, h("div", { class: "label" }, PI.statusBadge(s)), h("div", { class: "value" }, c))));
+  document.getElementById("list").replaceChildren(d.items.length ? h("table", {},
+    h("thead", {}, h("tr", {}, ["Sent", "Transaction", "Classification", "Risk", "Status", "Message SID", "To", "Attempts", "Error", "Message"].map((x) => h("th", {}, x)))),
+    h("tbody", {}, d.items.map((n) => h("tr", {},
+      h("td", {}, PI.when(n.sent_at), h("div", { class: "muted" }, "status " + PI.when(n.status_updated_at))),
+      h("td", {}, h("a", { href: "investigation.html?tx=" + encodeURIComponent(n.transaction_id) }, n.transaction_id), h("div", { class: "muted" }, n.investigation_ref)),
+      h("td", {}, PI.classBadge(n.classification)), h("td", {}, n.risk_score ?? "–"), h("td", {}, PI.statusBadge(n.status)),
+      h("td", { class: "mono" }, n.message_sid || "–"), h("td", {}, n.recipient || "–"), h("td", {}, n.attempts),
+      h("td", {}, n.error_message ? `${n.error_code || ""} ${n.error_message}` : "–"),
+      h("td", {}, h("details", {}, h("summary", {}, "view"), h("pre", { style: "white-space:pre-wrap;margin:4px 0;font-size:12px" }, n.body || "")))))))
+    : h("p", { class: "muted" }, "No alerts yet. Analyze a fraud or gambling scenario to send one."));
+}
+document.getElementById("refresh").addEventListener("click", async (e) => {
+  // Email alerts have no delivery callback; the Twilio status poller (PI API - Refresh Alert Status) is no longer deployed.
+  e.target.disabled = true; await load(); document.getElementById("msg").textContent = "Reloaded.";
+  e.target.disabled = false;
+});
+load();
+</script>
+</body>
+</html>

@@ -76,7 +76,7 @@
     "pi.solution": "Solution", "pi.solutionText": "A hybrid decision engine: final score = 60% AI + 40% rules. Strong rule evidence overrides a soft AI verdict, unknown payers are never auto-approved, and BLOCK is only a proposal that a named analyst must approve.",
     "pi.arch": "Architecture", "pi.flow": "Analyze Transaction flow",
     "pi.snap": "A SNAP-style (Bank Indonesia) intrabank transfer endpoint: requests and responses are signed with SHA256withRSA and encrypted with RSA-OAEP-SHA256 + AES-256-GCM. A pattern guard looks at the source account's last 30 days — one occurrence is not a pattern — so a first transfer is not blocked outright.",
-    "pi.sec": "Security &amp; resilience", "pi.code": "View source code on GitHub",
+    "pi.sec": "Security &amp; resilience", "pi.code": "View source code on GitHub", "pi.demo": "Try the Live Demo",
     "sc.badge": "Business Intelligence · Supply Chain", "sc.title": "Supply Chain Power BI &amp; SQL Data Warehouse Architecture",
     "sc.text": "A star-schema model on a SQL data warehouse to monitor inventory health and demand-planning quality.",
     "sc.dio": "Days Inventory Outstanding — how many days of working capital sit in stock.", "sc.wape": "Weighted Absolute Percentage Error — volume-weighted forecast accuracy.",
