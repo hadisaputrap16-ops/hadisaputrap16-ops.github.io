@@ -32,7 +32,7 @@
   <form class="card" id="form" style="margin-top:16px">
     <h2>Transaction</h2>
     <div class="fields">
-      <label>Transaction ID <input name="transaction_id" required pattern="TX-[A-Z0-9-]{4,40}"></label>
+      <label>Transaction ID <input name="transaction_id" required pattern="TX-[A-Z0-9\-]{4,40}"></label>
       <label>Payment ID (tokenized) <input name="payment_id" required placeholder="PID-TKN-7Q2M9A"></label>
       <label>Amount (IDR) <input name="amount" type="number" min="1" step="1" required></label>
       <label>Channel
