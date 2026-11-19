@@ -90,7 +90,7 @@ function kvList(obj) {
   return h("dl", { class: "kv" }, Object.entries(obj || {}).flatMap(([k, v]) => [h("dt", {}, k), h("dd", { class: "mono" }, v == null ? "–" : typeof v === "object" ? JSON.stringify(v) : String(v))]));
 }
 
-function render(r) {
+function render(r, sent) {
   const box = document.getElementById("result");
   if (!r || r.ok === false) return box.replaceChildren(PI.errorBox("Transfer failed: " + (r?.error || "unknown error")));
   const t = r.trace || {}, res = r.response || {}, ra = res.additionalInfo?.riskAssessment;
@@ -135,7 +135,9 @@ function render(r) {
       step(4, !!rs.body?.encryptedData, `Response encrypted for partner (${rs.body?.bytes ?? "?"} bytes)`, rs.body?.encryptedData),
       step(5, !!r.signatureValid, r.signatureValid ? "Response signature verified with Boomi's public key" : "Response signature NOT valid", rs.headers?.["X-SIGNATURE"]),
       step(6, !!r.response && !r.decryptError, r.decryptError ? "Response could not be decrypted" : "Response decrypted by partner", `${((t.ms || 0) / 1000).toFixed(1)} s round trip · ${t.endpoint || ""}`)),
-    h("details", { style: "margin-top:12px" }, h("summary", {}, "Request headers & string to sign"),
+    h("details", { style: "margin-top:12px" }, h("summary", {}, "Plaintext SNAP request (what gets encrypted)"),
+      h("pre", { class: "mono muted", style: "white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;margin:0" }, JSON.stringify(sent, null, 2))),
+    h("details", {}, h("summary", {}, "Request headers & string to sign"),
       kvList({ ...rq.headers, stringToSign: rq.stringToSign, encryptedKey: rq.body?.encryptedKey, iv: rq.body?.iv })),
     h("details", {}, h("summary", {}, "Response headers & envelope"),
       kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv })));
@@ -159,7 +161,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = document.getElementById("submit"), busy = document.getElementById("busy");
   btn.disabled = true; busy.hidden = false;
   const stopPipeline = livePipeline();
-  try { render(await PI.post("/api/transfer", snap)); }
+  try { render(await PI.post("/api/transfer", snap), snap); }
   catch (e) { document.getElementById("result").replaceChildren(PI.errorBox("Network error: " + e.message)); }
   finally { stopPipeline(); btn.disabled = false; busy.hidden = true; form.partnerReferenceNo.value = newRef(); }
 });

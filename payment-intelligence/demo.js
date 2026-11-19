@@ -102,6 +102,63 @@
     };
   }
 
+  // Real SNAP crypto in the browser, same envelope as tools/snap_client.js (SHA256withRSA over
+  // "POST:<path>:<sha256hex(body)>:<ts>", body sealed with RSA-OAEP-256 + AES-256-GCM), but with throwaway keys made
+  // per page load: the partner's and Boomi's real private keys never leave the server. Only the decision is replayed.
+  const SNAP_PATH = "/v1.0/transfer-intrabank";
+  const subtle = globalThis.crypto?.subtle;
+  let keysP;
+  const rsa = (name, usages) => subtle.generateKey({ name, modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, false, usages);
+  const demoKeys = () => (keysP ||= Promise.all([rsa("RSASSA-PKCS1-v1_5", ["sign", "verify"]), rsa("RSA-OAEP", ["encrypt", "decrypt"]),
+    rsa("RSASSA-PKCS1-v1_5", ["sign", "verify"]), rsa("RSA-OAEP", ["encrypt", "decrypt"])])
+    .then(([partnerSign, boomiSeal, boomiSign, partnerSeal]) => ({ partnerSign, boomiSeal, boomiSign, partnerSeal })));
+  const enc = (s) => new TextEncoder().encode(s);
+  const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const hex = (buf) => [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  const toSign = async (body, ts) => `POST:${SNAP_PATH}:${hex(await subtle.digest("SHA-256", enc(body)))}:${ts}`;
+  const RS = { name: "RSASSA-PKCS1-v1_5" };
+  const sign = async (key, body, ts) => b64(await subtle.sign(RS, key, enc(await toSign(body, ts))));
+  const verify = async (key, body, ts, sig) => subtle.verify(RS, key, unb64(sig), enc(await toSign(body, ts)));
+  async function seal(plain, pub) {
+    const key = crypto.getRandomValues(new Uint8Array(32)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const aes = await subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+    return { encryptedKey: b64(await subtle.encrypt({ name: "RSA-OAEP" }, pub, key)), iv: b64(iv),
+      encryptedData: b64(await subtle.encrypt({ name: "AES-GCM", iv }, aes, enc(plain))) }; // WebCrypto appends the GCM tag, like the Node client
+  }
+  async function open(env, priv) {
+    const raw = await subtle.decrypt({ name: "RSA-OAEP" }, priv, unb64(env.encryptedKey));
+    const aes = await subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    return JSON.parse(new TextDecoder().decode(await subtle.decrypt({ name: "AES-GCM", iv: unb64(env.iv) }, aes, unb64(env.encryptedData))));
+  }
+  const snapTs = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19) + "+07:00";
+  const cut = (v, n = 44) => (v && v.length > n ? v.slice(0, n) + "…" : v);
+
+  // Replaces the replay placeholders with a real signed + encrypted round trip; falls back to them if WebCrypto is missing.
+  async function signedTransfer(r, request) {
+    if (!r.ok || !subtle) return r;
+    const t0 = Date.now(), k = await demoKeys();
+    const body = JSON.stringify(await seal(JSON.stringify(request), k.boomiSeal.publicKey)), ts = snapTs();
+    const sig = await sign(k.partnerSign.privateKey, body, ts);
+    const headers = { "Content-Type": "application/json", "X-TIMESTAMP": ts, "X-SIGNATURE": sig, "X-PARTNER-ID": "PI-PARTNER-001",
+      "X-EXTERNAL-ID": String(Date.now()) + String(Math.floor(Math.random() * 1e6)), "CHANNEL-ID": "95221" };
+    // "Boomi" side: reject unless the signature checks out and the body decrypts back to what was sent.
+    if (!(await verify(k.partnerSign.publicKey, body, ts, sig))) return { ...r, responseCode: "4011700", responseMessage: "Unauthorized. Invalid signature" };
+    await open(JSON.parse(body), k.boomiSeal.privateKey);
+    const sealed = await seal(JSON.stringify(r.response), k.partnerSeal.publicKey);
+    const text = JSON.stringify({ responseCode: r.responseCode, responseMessage: r.responseMessage, ...sealed }), rts = snapTs();
+    const rsig = await sign(k.boomiSign.privateKey, text, rts);
+    // Partner side: verify Boomi's signature, then decrypt the response the page renders.
+    const signatureValid = await verify(k.boomiSign.publicKey, text, rts, rsig), env = JSON.parse(body);
+    return { ...r, signatureValid, response: await open(sealed, k.partnerSeal.privateKey), trace: {
+      ms: Date.now() - t0, endpoint: "POST " + SNAP_PATH + " · demo keys in your browser, decision replayed from snapshot",
+      request: { headers: { ...headers, "X-SIGNATURE": cut(sig) }, stringToSign: cut(await toSign(body, ts), 90),
+        body: { encryptedKey: cut(env.encryptedKey), iv: env.iv, encryptedData: cut(env.encryptedData), bytes: body.length } },
+      response: { headers: { "X-TIMESTAMP": rts, "X-SIGNATURE": cut(rsig) }, signatureValid,
+        body: { responseCode: r.responseCode, encryptedKey: cut(sealed.encryptedKey), iv: sealed.iv, encryptedData: cut(sealed.encryptedData), bytes: text.length } },
+    } };
+  }
+
   // The real assistant is an Agent Garden agent; the demo answers its starter questions from the snapshot instead.
   function assistant(d, b) {
     const m = String(b.message || "").toLowerCase();
@@ -140,7 +197,7 @@
       await pause(300 + Math.random() * 500); // keep the portal's loading states visible
       if (url === "/api/query") return reply(query(d, body));
       if (url === "/api/analyze") return reply(analyze(d, body));
-      if (url === "/api/transfer") return reply(transfer(d, body));
+      if (url === "/api/transfer") { await pause(2500); return reply(await signedTransfer(transfer(d, body), body)); } // longer pause lets the pipeline animation play
       if (url === "/api/assistant") return reply(assistant(d, body));
       if (url === "/api/refresh-alerts") return reply(d.alerts);
       return reply({ ok: false, error: DEMO_NOTE + "unknown route" }, 404);
@@ -155,7 +212,7 @@
     bar.className = "demo-banner";
     bar.setAttribute("role", "note");
     bar.innerHTML = '<strong>Live demo · read-only snapshot.</strong> Data comes from the real Payment Intelligence database ' +
-      '(Boomi + Agent Garden + Neon). Analyze and Transfer replay stored transactions for the preset scenarios; nothing is saved or sent. ' +
+      '(Boomi + Agent Garden + Neon). Analyze and Transfer replay stored transactions for the preset scenarios; Transfer really signs and encrypts the SNAP request in your browser with throwaway demo keys. Nothing is saved or sent. ' +
       '<a href="https://github.com/hadisaputrap16-ops/Payment-Intelligence" target="_blank" rel="noopener">Source code</a> · ' +
       '<a href="../#projects">Back to portfolio</a>';
     document.body.prepend(bar);

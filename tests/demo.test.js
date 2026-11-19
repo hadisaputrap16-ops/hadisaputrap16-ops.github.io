@@ -11,7 +11,7 @@ const realFetch = async (u) => {
 };
 const window = { fetch: realFetch };
 const document = { addEventListener() {} };
-vm.runInNewContext(fs.readFileSync(path.join(dir, "demo.js"), "utf8"), { window, document, Response, setTimeout, console, URL });
+vm.runInNewContext(fs.readFileSync(path.join(dir, "demo.js"), "utf8"), { window, document, Response, setTimeout, console, URL, crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob });
 const call = async (url, body) => (await window.fetch(url, { method: "POST", body: JSON.stringify(body) })).json();
 
 (async () => {
@@ -50,6 +50,7 @@ const call = async (url, body) => (await window.fetch(url, { method: "POST", bod
   for (const [pid, src, ben] of transfers) {
     const r = await call("/api/transfer", { sourceAccountNo: src, beneficiaryAccountNo: ben, additionalInfo: { paymentId: pid } });
     assert.ok(r.ok && r.responseCode && r.response.additionalInfo.riskAssessment.classification, `transfer ${pid}`);
+    assert.ok(r.signatureValid && r.trace.request.body.bytes > 100 && !/recorded/.test(r.trace.request.headers["X-SIGNATURE"]), `transfer ${pid} is really signed + encrypted`);
   }
   for (const q of ["Ringkas kondisi fraud & judi online saat ini", "Tampilkan 5 transaksi POTENTIAL_FRAUD terbaru", "Alert mana yang gagal terkirim?", "halo"]) {
     const r = await call("/api/assistant", { message: q, history: [] });
