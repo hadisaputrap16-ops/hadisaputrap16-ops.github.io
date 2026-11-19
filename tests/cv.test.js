@@ -17,4 +17,11 @@ assert.ok(tailored.summary.includes("Kafka"), "summary mentions matched strength
 const integ = buildCV({ role: "int", jd: "", l: "id" });
 assert.strictEqual(integ.projects[0].name.startsWith("Payment Intelligence"), true);
 assert.strictEqual(integ.H.exp, "Pengalaman Kerja");
+// The modal links to pre-built PDFs (tools/build-cv-pdf.js); both languages must exist and be real PDFs.
+const fs = require("fs"), path = require("path");
+for (const l of ["ID", "EN"]) {
+  const f = path.join(__dirname, "..", "assets", "cv", `Hadi_Saputra_CV_Integration_AI_Engineer_${l}.pdf`);
+  assert.ok(fs.existsSync(f), `missing ${f}`);
+  assert.strictEqual(fs.readFileSync(f).subarray(0, 4).toString(), "%PDF", `${l} PDF is not a PDF`);
+}
 console.log("cv.test.js: all checks passed");

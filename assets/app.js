@@ -89,7 +89,7 @@
     "contact.title": "Let's talk!", "hero.status": "Open to work · Jakarta, ID",
     "foot": "Made with 💚 and lots of ☕ · GitHub Pages",
     "cv.title": "Download CV", "cv.lang": "CV language",
-    "cv.pdf": "Download PDF", "cv.docx": "Download .docx", "cv.hint": "ATS-friendly format. For PDF, choose \"Save as PDF\" in the print dialog.",
+    "cv.view": "View CV (PDF)", "cv.hint": "Opens the ATS-friendly PDF in a new tab — save or print it from there.",
   };
   const ID = {};
   document.querySelectorAll("[data-i18n]").forEach((el) => (ID[el.dataset.i18n] = el.innerHTML));
@@ -188,13 +188,16 @@
       ${sec(H.cert, `<ul>${li(cv.certifications)}</ul>`)}`;
   }
 
+  // Pre-built PDFs (tools/build-cv-pdf.js) open in a new tab; the modal shows the same CV as live HTML.
+  const pdfUrl = (l) => `assets/cv/Hadi_Saputra_CV_Integration_AI_Engineer_${l.toUpperCase()}.pdf`;
   let cvLangTouched = false;
+  function syncCV() { renderCV(); $("#cvView").href = pdfUrl(cvLang()); }
   function openCV() {
     lastFocus = document.activeElement;
     if (!cvLangTouched) cvLangInputs.forEach((i) => (i.checked = i.value === lang)); // default to the site language
     modal.hidden = false; document.body.classList.add("noscroll");
-    renderCV();
-    (cvLangInputs.find((i) => i.checked) || $("#cvPdf")).focus();
+    syncCV();
+    (cvLangInputs.find((i) => i.checked) || $("#cvView")).focus();
   }
   function closeCV() {
     modal.hidden = true; document.body.classList.remove("noscroll");
@@ -205,79 +208,7 @@
   $("#cvClose").onclick = closeCV;
   modal.addEventListener("click", (e) => { if (e.target === modal) closeCV(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) closeCV(); });
-  cvLangInputs.forEach((i) => i.addEventListener("change", () => { cvLangTouched = true; renderCV(); }));
-
-  const fileBase = () => `Hadi_Saputra_CV_Integration_AI_Engineer_${cvLang().toUpperCase()}`;
-
-  $("#cvPdf").onclick = () => {
-    const old = document.title;
-    document.title = fileBase(); // browsers use the title as the default PDF filename
-    document.body.classList.add("print-cv");
-    const done = () => { document.body.classList.remove("print-cv"); document.title = old; window.removeEventListener("afterprint", done); };
-    window.addEventListener("afterprint", done);
-    window.print();
-    setTimeout(done, 1000);
-  };
-
-  // docx is ~1 MB, so load it only when someone actually asks for a .docx.
-  let docxLoading;
-  function loadDocx() {
-    if (window.docx) return Promise.resolve(window.docx);
-    return (docxLoading ||= new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js";
-      s.onload = () => res(window.docx);
-      s.onerror = () => { docxLoading = null; rej(new Error("docx CDN failed")); };
-      document.head.appendChild(s);
-    }));
-  }
-
-  $("#cvDocx").onclick = async () => {
-    const btn = $("#cvDocx"), span = btn.querySelector("span"), label = span.textContent;
-    btn.disabled = true; span.textContent = "…";
-    try {
-      const D = await loadDocx();
-      const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = D;
-      const c = cv || buildCV(opts());
-      const H = c.H, kids = [];
-      const p = (runs, o = {}) => kids.push(new Paragraph({ children: runs, spacing: { after: 60 }, ...o }));
-      const r = (text, o = {}) => new TextRun({ text, ...o });
-      const head = (text) => kids.push(new Paragraph({
-        children: [r(text.toUpperCase(), { bold: true, size: 24 })], spacing: { before: 200, after: 80 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000", space: 1 } },
-      }));
-      const bullets = (arr) => arr.forEach((b) => kids.push(new Paragraph({ children: [r(b)], bullet: { level: 0 }, spacing: { after: 40 } })));
-      const job = (title, company, meta, bs) => {
-        p([r(title, { bold: true }), r(", " + company)], { spacing: { before: 120, after: 0 } });
-        p([r(meta, { italics: true })]);
-        bullets(bs || []);
-      };
-
-      p([r(c.name, { bold: true, size: 36 })], { alignment: AlignmentType.CENTER, spacing: { after: 40 } });
-      p([r(c.headline, { size: 24 })], { alignment: AlignmentType.CENTER, spacing: { after: 40 } });
-      p([r(c.contact.join(" | "))], { alignment: AlignmentType.CENTER });
-      head(H.sum); p([r(c.summary)]);
-      head(H.skills); p([r(c.skills.join(" • "))]);
-      head(H.exp);
-      c.experience.forEach((e) => job(e.role, e.company + (e.via ? ` (${e.via})` : ""), e.period + (e.loc ? " | " + e.loc : ""), e.bullets));
-      c.earlier.forEach((e) => job(e.role, e.company, e.period + (e.loc ? " | " + e.loc : "")));
-      head(H.proj); c.projects.forEach((pr) => job(pr.name, pr.period, `${H.stack}: ${pr.stack}`, pr.bullets));
-      head(H.edu); c.education.forEach((e) => p([r(e.degree, { bold: true }), r(`, ${e.school} | ${e.period}`)]));
-      head(H.cert); bullets(c.certifications);
-
-      const doc = new Document({
-        creator: c.name, title: `${c.name} — ${c.headline}`,
-        styles: { default: { document: { run: { font: "Calibri", size: 21 } } } },
-        sections: [{ properties: { page: { margin: { top: 900, bottom: 900, left: 1000, right: 1000 } } }, children: kids }],
-      });
-      const blob = await Packer.toBlob(doc);
-      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: fileBase() + ".docx" });
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    } catch (e) {
-      alert((lang === "en" ? "Could not build the .docx: " : "Gagal membuat .docx: ") + e.message);
-    } finally { btn.disabled = false; span.textContent = label; }
-  };
+  cvLangInputs.forEach((i) => i.addEventListener("change", () => { cvLangTouched = true; syncCV(); }));
 
   // ---------- boot ----------
   $("#yr").textContent = new Date().getFullYear();
