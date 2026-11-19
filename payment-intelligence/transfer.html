@@ -68,6 +68,18 @@ function step(ok, title, detail) {
     h("div", {}, h("div", { class: "snap-title" }, title), detail ? h("div", { class: "muted mono snap-detail" }, detail) : null));
 }
 
+// Live pipeline while the request is in flight: steps 1-3 tick on a timer, then it waits on the AI step until the response lands.
+const PIPE = ["Signing request (SHA256withRSA)", "Encrypting body (RSA-OAEP-256 + AES-256-GCM)", "Boomi verifying signature & decrypting", "AI agent + rules analysing risk", "Encrypting & signing response", "Verifying Boomi's response signature", "Decrypting response"];
+function livePipeline() {
+  let i = 0;
+  const items = PIPE.map((t) => h("li", {}, h("span", { class: "snap-icon", "aria-hidden": "true" }), h("div", { class: "snap-title" }, t)));
+  const paint = () => items.forEach((li, k) => { li.className = "snap-step " + (k < i ? "done" : k === i ? "active" : "pending"); });
+  paint();
+  document.getElementById("result").replaceChildren(h("div", { class: "card" }, h("h2", {}, "SNAP pipeline"), h("ol", { class: "snap-steps" }, items)));
+  const timer = setInterval(() => { if (i < 3) { i++; paint(); } }, 900);
+  return () => clearInterval(timer);
+}
+
 function kvList(obj) {
   return h("dl", { class: "kv" }, Object.entries(obj || {}).flatMap(([k, v]) => [h("dt", {}, k), h("dd", { class: "mono" }, v == null ? "–" : typeof v === "object" ? JSON.stringify(v) : String(v))]));
 }
@@ -109,7 +121,7 @@ function render(r) {
   const rq = t.request || {}, rs = t.response || {};
   const security = h("div", { class: "card" },
     h("h2", {}, "SNAP security trail"),
-    h("ol", { class: "snap-steps" },
+    h("ol", { class: "snap-steps animate" },
       step(true, "Request signed by partner (SHA256withRSA)", rq.headers?.["X-SIGNATURE"]),
       step(true, `Body encrypted for Boomi (RSA-OAEP-256 + AES-256-GCM, ${rq.body?.bytes ?? "?"} bytes)`, rq.body?.encryptedData),
       step(!authFailed, authFailed ? "Boomi rejected the signature or payload" : "Boomi verified the signature and decrypted the body", `X-PARTNER-ID ${rq.headers?.["X-PARTNER-ID"] || "–"} · X-TIMESTAMP ${rq.headers?.["X-TIMESTAMP"] || "–"}`),
@@ -122,6 +134,10 @@ function render(r) {
     h("details", {}, h("summary", {}, "Response headers & envelope"),
       kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv })));
 
+  const steps = security.querySelectorAll(".snap-step");
+  steps.forEach((li, k) => li.style.setProperty("--i", k));
+  decision.classList.add("reveal"); // decision lands after the trail finishes playing
+  decision.style.setProperty("--d", steps.length * 0.35 + "s");
   box.replaceChildren(h("div", { class: "grid two" }, decision, security));
 }
 
@@ -138,9 +154,10 @@ form.addEventListener("submit", async (ev) => {
   };
   const btn = document.getElementById("submit"), busy = document.getElementById("busy");
   btn.disabled = true; busy.hidden = false;
+  const stopPipeline = livePipeline();
   try { render(await PI.post("/api/transfer", snap)); }
   catch (e) { document.getElementById("result").replaceChildren(PI.errorBox("Network error: " + e.message)); }
-  finally { btn.disabled = false; busy.hidden = true; form.partnerReferenceNo.value = newRef(); }
+  finally { stopPipeline(); btn.disabled = false; busy.hidden = true; form.partnerReferenceNo.value = newRef(); }
 });
 </script>
 </body>

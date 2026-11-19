@@ -129,6 +129,19 @@ button.ghost:hover { background: var(--surface-1); }
 .snap-icon { font-weight: 700; }
 .snap-title { font-weight: 600; }
 .snap-detail { overflow-wrap: anywhere; }
+/* SNAP pipeline animation: live steps while waiting, staggered replay of the real trail after */
+.snap-step { transition: opacity .3s; }
+.snap-step.pending { opacity: .45; }
+.snap-step.pending .snap-icon::before { content: "○"; }
+.snap-step.done .snap-icon::before { content: "✓"; color: var(--good); }
+.snap-step.active .snap-icon::before { content: ""; display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+.snap-step.active .snap-title::after { content: "…"; }
+.snap-steps.animate > li { animation: snap-in .45s ease-out both; animation-delay: calc(var(--i, 0) * 350ms); }
+.snap-steps.animate .snap-icon { display: inline-block; animation: snap-pop .4s ease-out both; animation-delay: calc(var(--i, 0) * 350ms + 150ms); }
+.reveal { animation: snap-in .5s ease-out both; animation-delay: var(--d, 0s); }
+@keyframes snap-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes snap-pop { from { transform: scale(0); } 60% { transform: scale(1.35); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .snap-steps.animate > li, .snap-steps.animate .snap-icon, .reveal, .snap-step.active .snap-icon::before { animation: none; } }
 details summary { cursor: pointer; color: var(--text-secondary); font-size: 13px; margin: 6px 0; }
 details .kv dd { overflow-wrap: anywhere; }
 
