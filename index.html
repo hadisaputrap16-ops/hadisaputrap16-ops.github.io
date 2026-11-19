@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="id" data-theme="dark">
+<html lang="id" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hadi Saputra — Integration & Data Portfolio</title>
 <meta name="description" content="Hadi Saputra — API & Integration Engineer, Data Analyst and Power BI Engineer. Boomi AI Agent, Power BI & DAX, SQL Data Warehousing.">
+<meta name="theme-color" content="#16a34a">
 <meta property="og:title" content="Hadi Saputra — Integration & Data Portfolio">
 <meta property="og:description" content="Boomi AI Agent · Power BI & DAX · SQL Data Warehousing · Banking APIs">
 <meta property="og:image" content="assets/avatar.jpeg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💚</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
@@ -18,8 +20,8 @@
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="nav" id="top">
-  <div class="wrap nav-in">
-    <a href="#top" class="logo">HS<span>.</span></a>
+  <div class="nav-in">
+    <a href="#top" class="logo" aria-label="Home"><span class="logo-mark">HS</span><span class="logo-dot"></span></a>
     <nav class="links" aria-label="Primary">
       <a href="#about" data-i18n="nav.about">Tentang</a>
       <a href="#experience" data-i18n="nav.exp">Pengalaman</a>
@@ -28,9 +30,9 @@
       <a href="#contact" data-i18n="nav.contact">Kontak</a>
     </nav>
     <div class="nav-actions">
-      <button class="chip-btn" id="langBtn" aria-label="Switch language">EN</button>
-      <button class="chip-btn" id="themeBtn" aria-label="Toggle dark / light mode">☀</button>
-      <button class="btn btn-primary btn-sm" data-open-cv data-i18n="cta.cv">Generate ATS CV</button>
+      <button class="icon-btn" id="langBtn" aria-label="Switch language">EN</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle dark / light mode"><i data-lucide="moon"></i></button>
+      <button class="btn btn-primary btn-sm" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Generate ATS CV</span></button>
     </div>
   </div>
 </header>
@@ -38,56 +40,69 @@
 <main id="main">
   <!-- HERO -->
   <section class="hero">
+    <div class="blob b1" aria-hidden="true"></div><div class="blob b2" aria-hidden="true"></div>
     <div class="wrap hero-in">
       <div class="hero-text">
-        <p class="eyebrow" data-i18n="hero.hi">Halo, saya</p>
-        <h1>Hadi Saputra</h1>
-        <p class="headline" id="headline"></p>
+        <span class="pill"><span class="pulse"></span><span data-i18n="hero.status">Open to work · Jakarta, ID</span></span>
+        <p class="eyebrow"><span data-i18n="hero.hi">Halo, saya</span> <span class="wave" aria-hidden="true">👋</span></p>
+        <h1>Hadi <span class="hl">Saputra</span></h1>
+        <p class="headline"><i data-lucide="sparkles"></i><span id="headline"></span></p>
         <p class="lead" data-i18n="hero.lead">Saya membangun integrasi API yang aman, orkestrasi AI agent, dan platform BI yang mengubah data operasional menjadi keputusan.</p>
         <div class="hero-cta">
-          <button class="btn btn-primary" data-open-cv data-i18n="cta.cvLong">Generate / Download ATS CV</button>
-          <a class="btn btn-ghost" href="#projects" data-i18n="cta.projects">Lihat Studi Kasus</a>
+          <button class="btn btn-primary" data-open-cv><i data-lucide="download"></i><span data-i18n="cta.cvLong">Generate / Download ATS CV</span></button>
+          <a class="btn btn-ghost" href="#projects"><i data-lucide="rocket"></i><span data-i18n="cta.projects">Lihat Studi Kasus</span></a>
         </div>
         <ul class="stats" id="stats"></ul>
       </div>
       <div class="hero-photo">
-        <div class="ring"><img src="assets/avatar.jpeg" alt="Foto profil Hadi Saputra" width="320" height="320"></div>
-        <span class="float f1">⚡ Boomi AI Agent</span>
-        <span class="float f2">📊 Power BI &amp; DAX</span>
-        <span class="float f3">🗄 SQL Data Warehousing</span>
-        <span class="float f4">🔐 SNAP BI APIs</span>
+        <div class="frame"><img src="assets/avatar.jpeg" alt="Foto profil Hadi Saputra" width="340" height="340"></div>
+        <span class="sticker s1"><i data-lucide="bot"></i>Boomi AI Agent</span>
+        <span class="sticker s2"><i data-lucide="chart-column"></i>Power BI &amp; DAX</span>
+        <span class="sticker s3"><i data-lucide="database"></i>SQL Data Warehousing</span>
+        <span class="sticker s4"><i data-lucide="shield-check"></i>SNAP BI APIs</span>
+        <span class="badge-round" aria-hidden="true"><b>5+</b><small>YRS</small></span>
       </div>
     </div>
   </section>
 
+  <div class="marquee" aria-hidden="true">
+    <div class="track">
+      <span>Boomi Integration</span><i data-lucide="sparkles"></i><span>Agent Garden</span><i data-lucide="sparkles"></i><span>Power BI</span><i data-lucide="sparkles"></i><span>DAX</span><i data-lucide="sparkles"></i><span>SQL Data Warehouse</span><i data-lucide="sparkles"></i><span>Axway API Gateway</span><i data-lucide="sparkles"></i><span>SNAP BI</span><i data-lucide="sparkles"></i><span>Kafka</span><i data-lucide="sparkles"></i><span>Python</span><i data-lucide="sparkles"></i><span>PostgreSQL</span><i data-lucide="sparkles"></i>
+      <span>Boomi Integration</span><i data-lucide="sparkles"></i><span>Agent Garden</span><i data-lucide="sparkles"></i><span>Power BI</span><i data-lucide="sparkles"></i><span>DAX</span><i data-lucide="sparkles"></i><span>SQL Data Warehouse</span><i data-lucide="sparkles"></i><span>Axway API Gateway</span><i data-lucide="sparkles"></i><span>SNAP BI</span><i data-lucide="sparkles"></i><span>Kafka</span><i data-lucide="sparkles"></i><span>Python</span><i data-lucide="sparkles"></i><span>PostgreSQL</span><i data-lucide="sparkles"></i>
+    </div>
+  </div>
+
   <!-- ABOUT -->
   <section id="about" class="section">
     <div class="wrap">
-      <h2 class="sec-title"><span>01</span> <b data-i18n="nav.about">Tentang</b></h2>
+      <h2 class="sec-title"><span class="num">01</span><span class="sec-ic"><i data-lucide="smile"></i></span><b data-i18n="nav.about">Tentang</b></h2>
       <div class="about-grid">
-        <p class="about-text" id="summary"></p>
-        <div class="card mini">
-          <h3 data-i18n="about.focus">Fokus</h3>
+        <div class="card about-card">
+          <i data-lucide="quote" class="quote-ic"></i>
+          <p class="about-text" id="summary"></p>
+        </div>
+        <div class="card focus-card">
+          <h3><i data-lucide="target"></i><span data-i18n="about.focus">Fokus</span></h3>
           <ul class="focus">
-            <li data-i18n="about.f1">API &amp; Integration Engineering</li>
-            <li data-i18n="about.f2">AI Agent Orchestration (Boomi)</li>
-            <li data-i18n="about.f3">Business Intelligence &amp; Data Modeling</li>
-            <li data-i18n="about.f4">Data Engineering / ETL</li>
+            <li><i data-lucide="plug"></i><span data-i18n="about.f1">API &amp; Integration Engineering</span></li>
+            <li><i data-lucide="bot"></i><span data-i18n="about.f2">AI Agent Orchestration (Boomi)</span></li>
+            <li><i data-lucide="chart-column"></i><span data-i18n="about.f3">Business Intelligence &amp; Data Modeling</span></li>
+            <li><i data-lucide="workflow"></i><span data-i18n="about.f4">Data Engineering / ETL</span></li>
           </ul>
-          <p class="muted small">📍 South Jakarta, Indonesia</p>
+          <p class="loc"><i data-lucide="map-pin"></i>South Jakarta, Indonesia</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- EXPERIENCE -->
-  <section id="experience" class="section alt">
+  <section id="experience" class="section tint">
     <div class="wrap">
-      <h2 class="sec-title"><span>02</span> <b data-i18n="nav.exp">Pengalaman</b></h2>
-      <p class="muted" id="employer"></p>
+      <h2 class="sec-title"><span class="num">02</span><span class="sec-ic"><i data-lucide="briefcase"></i></span><b data-i18n="nav.exp">Pengalaman</b></h2>
+      <p class="employer" id="employer"></p>
       <ol class="timeline" id="timeline"></ol>
       <div class="card rnd" id="rnd"></div>
-      <h3 class="sub" data-i18n="exp.earlier">Pengalaman sebelumnya</h3>
+      <h3 class="sub"><i data-lucide="history"></i><span data-i18n="exp.earlier">Pengalaman sebelumnya</span></h3>
       <ul class="earlier" id="earlier"></ul>
     </div>
   </section>
@@ -95,42 +110,46 @@
   <!-- PROJECTS -->
   <section id="projects" class="section">
     <div class="wrap">
-      <h2 class="sec-title"><span>03</span> <b data-i18n="nav.projects">Proyek</b></h2>
+      <h2 class="sec-title"><span class="num">03</span><span class="sec-ic"><i data-lucide="folder-kanban"></i></span><b data-i18n="nav.projects">Proyek</b></h2>
 
       <article class="case card">
         <div class="case-head">
-          <span class="badge" data-i18n="pi.badge">Studi kasus unggulan · Boomi Hackathon · Nov 2026</span>
-          <h3>Payment Intelligence</h3>
+          <span class="tag-sticker"><i data-lucide="flame"></i><span data-i18n="pi.badge">Studi kasus unggulan · Boomi Hackathon · Nov 2026</span></span>
+          <h3>Payment Intelligence <span class="emoji" aria-hidden="true">🛡️</span></h3>
           <p class="muted" data-i18n="pi.sub">Deteksi kejahatan finansial berbasis AI untuk bank fiktif "BANK GAK JAGO" — fraud transfer dan judi online dianalisis real time sebelum dana berpindah.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="payment-intelligence/"><i data-lucide="mouse-pointer-click"></i><span data-i18n="pi.demo">Coba Live Demo</span></a>
+            <a class="btn btn-ghost" href="https://github.com/hadisaputrap16-ops/Payment-Intelligence" target="_blank" rel="noopener"><i data-lucide="github"></i><span data-i18n="pi.code">Lihat source code di GitHub</span></a>
+          </div>
         </div>
         <ul class="metrics">
-          <li><b>92</b><span data-i18n="pi.m1">transaksi dianalisis</span></li>
-          <li><b>IDR 225.7M</b><span data-i18n="pi.m2">potensi fraud terdeteksi</span></li>
-          <li><b>12/12</b><span data-i18n="pi.m3">uji E2E lulus</span></li>
-          <li><b>13</b><span data-i18n="pi.m4">rules berbobot + AI</span></li>
+          <li class="m-lime"><i data-lucide="gauge"></i><b>92</b><span data-i18n="pi.m1">transaksi dianalisis</span></li>
+          <li class="m-ink"><i data-lucide="shield-check"></i><b>IDR 225.7M</b><span data-i18n="pi.m2">potensi fraud terdeteksi</span></li>
+          <li class="m-mint"><i data-lucide="badge-check"></i><b>12/12</b><span data-i18n="pi.m3">uji E2E lulus</span></li>
+          <li class="m-white"><i data-lucide="layers"></i><b>13</b><span data-i18n="pi.m4">rules berbobot + AI</span></li>
         </ul>
 
         <div class="case-grid">
           <div>
-            <h4 data-i18n="pi.problem">Masalah</h4>
+            <h4><i data-lucide="eye"></i><span data-i18n="pi.problem">Masalah</span></h4>
             <p data-i18n="pi.problemText">Rules murni mudah diaudit tetapi kaku; AI murni adaptif tetapi sulit dijelaskan. Bank butuh keputusan dalam hitungan detik yang tetap bisa dipertanggungjawabkan ke auditor dan regulator.</p>
-            <h4 data-i18n="pi.solution">Solusi</h4>
+            <h4><i data-lucide="wand-2"></i><span data-i18n="pi.solution">Solusi</span></h4>
             <p data-i18n="pi.solutionText">Decision engine hibrida: skor final = 60% AI + 40% rules. Bukti rules yang kuat menimpa AI yang lunak, payer tak dikenal tidak pernah auto-approve, dan BLOCK hanya usulan yang wajib disetujui analis bernama.</p>
           </div>
           <div>
-            <h4 data-i18n="pi.arch">Arsitektur</h4>
+            <h4><i data-lucide="workflow"></i><span data-i18n="pi.arch">Arsitektur</span></h4>
             <!-- Architecture diagram from docs/generator/content.js (DIAGRAMS.architecture) -->
             <svg class="arch" viewBox="0 0 640 330" role="img" aria-labelledby="archT">
               <title id="archT">Portal → Proxy → Boomi WSS → Neon PostgreSQL, Agent Garden agents and email notifications</title>
               <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="ah"/></marker></defs>
-              <g class="n edge"><rect x="10" y="12" width="180" height="56" rx="10"/><text x="100" y="36">Analyst Portal</text><text x="100" y="54" class="s">Dashboard · Alerts · Chat</text></g>
-              <g class="n edge"><rect x="230" y="12" width="180" height="56" rx="10"/><text x="320" y="36">Python Proxy</text><text x="320" y="54" class="s">server-side auth</text></g>
-              <g class="n edge"><rect x="450" y="12" width="180" height="56" rx="10"/><text x="540" y="36">SNAPShield API</text><text x="540" y="54" class="s">RSA sign · AES-GCM</text></g>
-              <g class="n boomi"><rect x="160" y="128" width="320" height="60" rx="10"/><text x="320" y="153">Boomi Integration — WSS listeners</text><text x="320" y="172" class="s">Analyze · Query · SNAP Transfer · Assistant</text></g>
-              <g class="n data"><rect x="10" y="252" width="145" height="64" rx="10"/><text x="82" y="278">Neon PostgreSQL</text><text x="82" y="296" class="s">pi_dispatch() · rules</text></g>
-              <g class="n ai"><rect x="170" y="252" width="145" height="64" rx="10"/><text x="242" y="278">Risk Analyst</text><text x="242" y="296" class="s">Agent Garden · JSON</text></g>
-              <g class="n ai"><rect x="330" y="252" width="145" height="64" rx="10"/><text x="402" y="278">PI Assistant</text><text x="402" y="296" class="s">4 read-only tools</text></g>
-              <g class="n ext"><rect x="490" y="252" width="140" height="64" rx="10"/><text x="560" y="278">Email Alerts</text><text x="560" y="296" class="s">Boomi Mail · SES</text></g>
+              <g class="n edge"><rect x="10" y="12" width="180" height="56" rx="12"/><text x="100" y="36">Analyst Portal</text><text x="100" y="54" class="s">Dashboard · Alerts · Chat</text></g>
+              <g class="n edge"><rect x="230" y="12" width="180" height="56" rx="12"/><text x="320" y="36">Python Proxy</text><text x="320" y="54" class="s">server-side auth</text></g>
+              <g class="n edge"><rect x="450" y="12" width="180" height="56" rx="12"/><text x="540" y="36">SNAPShield API</text><text x="540" y="54" class="s">RSA sign · AES-GCM</text></g>
+              <g class="n boomi"><rect x="160" y="128" width="320" height="60" rx="12"/><text x="320" y="153">Boomi Integration — WSS listeners</text><text x="320" y="172" class="s">Analyze · Query · SNAP Transfer · Assistant</text></g>
+              <g class="n data"><rect x="10" y="252" width="145" height="64" rx="12"/><text x="82" y="278">Neon PostgreSQL</text><text x="82" y="296" class="s">pi_dispatch() · rules</text></g>
+              <g class="n ai"><rect x="170" y="252" width="145" height="64" rx="12"/><text x="242" y="278">Risk Analyst</text><text x="242" y="296" class="s">Agent Garden · JSON</text></g>
+              <g class="n ai"><rect x="330" y="252" width="145" height="64" rx="12"/><text x="402" y="278">PI Assistant</text><text x="402" y="296" class="s">4 read-only tools</text></g>
+              <g class="n ext"><rect x="490" y="252" width="140" height="64" rx="12"/><text x="560" y="278">Email Alerts</text><text x="560" y="296" class="s">Boomi Mail · SES</text></g>
               <g class="e">
                 <path d="M190 40H228"/><path d="M320 68V126"/><path d="M540 68L440 126"/>
                 <path d="M220 188L90 250"/><path d="M290 188L250 250"/><path d="M350 188L395 250"/><path d="M420 188L550 250"/>
@@ -141,34 +160,34 @@
         </div>
 
         <div class="flow">
-          <h4 data-i18n="pi.flow">Alur Analyze Transaction</h4>
+          <h4><i data-lucide="git-branch"></i><span data-i18n="pi.flow">Alur Analyze Transaction</span></h4>
           <ol class="steps" id="piSteps"></ol>
         </div>
 
         <div class="case-grid">
           <div>
-            <h4>SNAPShield</h4>
+            <h4><i data-lucide="lock"></i><span>SNAPShield</span></h4>
             <p data-i18n="pi.snap">Endpoint transfer intrabank bergaya SNAP (Bank Indonesia): request/response ditandatangani SHA256withRSA dan dienkripsi RSA-OAEP-SHA256 + AES-256-GCM. Lapisan "pattern guard" memeriksa rekening sumber 30 hari terakhir — satu kejadian bukan pola — sehingga transfer pertama tidak langsung diblokir.</p>
           </div>
           <div>
-            <h4 data-i18n="pi.sec">Keamanan &amp; ketahanan</h4>
+            <h4><i data-lucide="shield-check"></i><span data-i18n="pi.sec">Keamanan &amp; ketahanan</span></h4>
             <ul class="ticks" id="piSec"></ul>
           </div>
         </div>
         <div class="tags"><span>Boomi Integration</span><span>Agent Garden</span><span>Neon PostgreSQL</span><span>SNAP API</span><span>Try/Catch + retry</span><span>Python</span><span>JavaScript</span></div>
-        <div class="hero-cta"><a class="btn btn-primary" href="payment-intelligence/" data-i18n="pi.demo">Coba Live Demo</a><a class="btn btn-ghost" href="https://github.com/hadisaputrap16-ops/Payment-Intelligence" target="_blank" rel="noopener" data-i18n="pi.code">Lihat source code di GitHub</a></div>
       </article>
 
       <div class="proj-grid">
         <article class="card proj">
-          <span class="badge alt" data-i18n="sc.badge">Business Intelligence · Supply Chain</span>
+          <span class="proj-ic"><i data-lucide="chart-column"></i></span>
+          <span class="tag-sticker alt"><span data-i18n="sc.badge">Business Intelligence · Supply Chain</span></span>
           <h3 data-i18n="sc.title">Arsitektur Power BI &amp; SQL Data Warehouse Supply Chain</h3>
           <p data-i18n="sc.text">Model star-schema di atas SQL data warehouse untuk memantau kesehatan inventori dan kualitas perencanaan permintaan.</p>
           <ul class="kpis">
             <li><b>DIO</b><span data-i18n="sc.dio">Days Inventory Outstanding — berapa hari modal kerja tertahan di stok.</span></li>
             <li><b>WAPE</b><span data-i18n="sc.wape">Weighted Absolute Percentage Error — akurasi forecast tertimbang volume.</span></li>
             <li><b>Bias</b><span data-i18n="sc.bias">Kecenderungan forecast over/under sebagai sinyal kalibrasi planner.</span></li>
-            <li><b>Expiry</b><span data-i18n="sc.exp">Inventory Expiration Tracking — bucket umur & stok mendekati kedaluwarsa.</span></li>
+            <li><b>Expiry</b><span data-i18n="sc.exp">Inventory Expiration Tracking — bucket umur &amp; stok mendekati kedaluwarsa.</span></li>
           </ul>
           <pre class="code"><code>WAPE = DIVIDE( SUMX(Fact, ABS([Actual] - [Forecast])), SUM(Fact[Actual]) )
 Bias = DIVIDE( SUM(Fact[Forecast]) - SUM(Fact[Actual]), SUM(Fact[Actual]) )
@@ -176,7 +195,8 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
           <div class="tags"><span>SQL DWH</span><span>Star Schema</span><span>Power BI</span><span>DAX</span><span>Power Query</span></div>
         </article>
         <article class="card proj">
-          <span class="badge alt" data-i18n="bank.badge">Integrasi API Perbankan</span>
+          <span class="proj-ic"><i data-lucide="building-2"></i></span>
+          <span class="tag-sticker alt"><span data-i18n="bank.badge">Integrasi API Perbankan</span></span>
           <h3 data-i18n="bank.title">60+ Integrasi API Perbankan — SNAP, BI-FAST, BRANKAS</h3>
           <p data-i18n="bank.text">Siklus API end-to-end di Axway API Gateway untuk Bank BTPN: desain, data mapping, transformasi, validasi, pengujian, deployment, dan monitoring, ditambah API Management multi-environment untuk PEFINDO Biro Kredit.</p>
           <ul class="ticks">
@@ -191,39 +211,42 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
   </section>
 
   <!-- SKILLS -->
-  <section id="skills" class="section alt">
+  <section id="skills" class="section tint">
     <div class="wrap">
-      <h2 class="sec-title"><span>04</span> <b data-i18n="nav.skills">Keahlian</b></h2>
+      <h2 class="sec-title"><span class="num">04</span><span class="sec-ic"><i data-lucide="zap"></i></span><b data-i18n="nav.skills">Keahlian</b></h2>
       <div class="skill-groups" id="skillGroups"></div>
       <div class="two">
-        <div class="card"><h3 data-i18n="sec.certs">Sertifikasi</h3><ul class="ticks" id="certs"></ul></div>
-        <div class="card"><h3 data-i18n="sec.edu">Pendidikan</h3><ul class="edu" id="edu"></ul></div>
+        <div class="card"><h3><i data-lucide="award"></i><span data-i18n="sec.certs">Sertifikasi</span></h3><ul class="ticks" id="certs"></ul></div>
+        <div class="card"><h3><i data-lucide="graduation-cap"></i><span data-i18n="sec.edu">Pendidikan</span></h3><ul class="edu" id="edu"></ul></div>
       </div>
     </div>
   </section>
 
   <!-- CONTACT -->
   <section id="contact" class="section">
-    <div class="wrap contact">
-      <h2 class="sec-title"><span>05</span> <b data-i18n="nav.contact">Kontak</b></h2>
-      <p class="lead" data-i18n="contact.text">Terbuka untuk peran API / Integration Engineering, Data Engineering, dan Business Intelligence.</p>
-      <div class="hero-cta center">
-        <a class="btn btn-primary" id="mailBtn" href="#">Email</a>
-        <a class="btn btn-ghost" id="liBtn" href="#" target="_blank" rel="noopener">LinkedIn</a>
-        <button class="btn btn-ghost" data-open-cv data-i18n="cta.cv">Generate ATS CV</button>
+    <div class="wrap">
+      <div class="contact card">
+        <span class="contact-emoji" aria-hidden="true">🤝</span>
+        <h2 data-i18n="contact.title">Yuk ngobrol!</h2>
+        <p class="lead" data-i18n="contact.text">Terbuka untuk peran API / Integration Engineering, Data Engineering, dan Business Intelligence.</p>
+        <div class="hero-cta center">
+          <a class="btn btn-primary" id="mailBtn" href="#"><i data-lucide="mail"></i><span>Email</span></a>
+          <a class="btn btn-ghost" id="liBtn" href="#" target="_blank" rel="noopener"><i data-lucide="linkedin"></i><span>LinkedIn</span></a>
+          <button class="btn btn-ghost" data-open-cv><i data-lucide="file-text"></i><span data-i18n="cta.cv">Generate ATS CV</span></button>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
-<footer class="foot"><div class="wrap">© <span id="yr"></span> Hadi Saputra · <span data-i18n="foot">Dibuat sebagai situs statis untuk GitHub Pages.</span></div></footer>
+<footer class="foot"><div class="wrap">© <span id="yr"></span> Hadi Saputra · <span data-i18n="foot">Dibuat dengan 💚 dan banyak ☕ · GitHub Pages</span></div></footer>
 
 <!-- ATS CV MODAL -->
 <div class="modal" id="cvModal" role="dialog" aria-modal="true" aria-labelledby="cvTitle" hidden>
   <div class="modal-box">
     <div class="modal-head">
-      <h2 id="cvTitle" data-i18n="cv.title">Generator CV ATS</h2>
-      <button class="chip-btn" id="cvClose" aria-label="Close">✕</button>
+      <h2 id="cvTitle"><i data-lucide="file-text"></i><span data-i18n="cv.title">Generator CV ATS</span></h2>
+      <button class="icon-btn" id="cvClose" aria-label="Close"><i data-lucide="x"></i></button>
     </div>
     <div class="cv-layout">
       <form class="cv-controls" id="cvForm" onsubmit="return false">
@@ -242,8 +265,8 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
         </label>
         <div class="match" id="cvMatch" aria-live="polite"></div>
         <div class="cv-btns">
-          <button type="button" class="btn btn-primary" id="cvPdf" data-i18n="cv.pdf">Export PDF</button>
-          <button type="button" class="btn btn-ghost" id="cvDocx" data-i18n="cv.docx">Download .docx</button>
+          <button type="button" class="btn btn-primary" id="cvPdf"><i data-lucide="download"></i><span data-i18n="cv.pdf">Export PDF</span></button>
+          <button type="button" class="btn btn-ghost" id="cvDocx"><i data-lucide="file-text"></i><span data-i18n="cv.docx">Download .docx</span></button>
         </div>
         <p class="muted small" data-i18n="cv.hint">PDF: pilih "Save as PDF" di dialog print. Semua diproses di browser, tanpa server.</p>
       </form>
@@ -252,6 +275,7 @@ DIO  = DIVIDE( [Avg Inventory Value], [COGS] ) * [Days in Period]</code></pre>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <script src="assets/data.js"></script>
 <script src="assets/app.js"></script>
 </body>

@@ -86,7 +86,8 @@
     "bank.b1": "Axway API Management HA cluster + 7.7 upgrade/rollback", "bank.b2": "RSA request encryption, SOAP signatures, IP filtering", "bank.b3": "Event-driven Axway ↔ Kafka (Confluent) integration",
     "sec.certs": "Certifications", "sec.edu": "Education",
     "contact.text": "Open to API / Integration Engineering, Data Engineering and Business Intelligence roles.",
-    "foot": "Built as a static site for GitHub Pages.",
+    "contact.title": "Let's talk!", "hero.status": "Open to work · Jakarta, ID",
+    "foot": "Made with 💚 and lots of ☕ · GitHub Pages",
     "cv.title": "ATS CV Generator", "cv.role": "Target role", "cv.titleLbl": "Title on CV", "cv.lang": "CV language",
     "cv.jd": "Paste a Job Description (optional)", "cv.jdPh": "Paste the job posting here — skills, projects and bullets are re-ordered to match its keywords.",
     "cv.pdf": "Export PDF", "cv.docx": "Download .docx", "cv.hint": "PDF: choose \"Save as PDF\" in the print dialog. Everything runs in your browser — no server.",
@@ -115,6 +116,9 @@
     bi: { en: "Business Intelligence", id: "Business Intelligence" }, lang: { en: "Languages", id: "Bahasa Pemrograman" },
     tool: { en: "Tools", id: "Tools" }, soft: { en: "Ways of working", id: "Cara kerja" },
   };
+  const GROUP_ICON = { int: "workflow", data: "database", bi: "chart-column", lang: "code-xml", tool: "terminal", soft: "users" };
+  const STAT_ICON = ["calendar-clock", "plug", "building-2", "badge-check"];
+  const icons = () => { try { window.lucide && window.lucide.createIcons(); } catch (e) { /* icons are decorative */ } };
 
   const $ = (s) => document.querySelector(s);
   const h = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -129,28 +133,32 @@
 
     $("#headline").textContent = t(P.headline);
     $("#summary").textContent = t(P.summary);
-    $("#stats").innerHTML = P.stats.map((s) => `<li><b>${h(s.v)}</b><span>${h(t(s.l))}</span></li>`).join("");
-    $("#employer").innerHTML = `<b>${h(P.employer.company)}</b> · ${h(P.employer.title)} · ${h(P.employer.period)} — ${h(t(P.employer.note))}`;
+    $("#stats").innerHTML = P.stats.map((s, i) => `<li><i data-lucide="${STAT_ICON[i % STAT_ICON.length]}"></i><b>${h(s.v)}</b><span>${h(t(s.l))}</span></li>`).join("");
+    $("#employer").innerHTML = `<i data-lucide="building-2"></i><span><b>${h(P.employer.company)}</b> · ${h(P.employer.title)} · ${h(P.employer.period)} — ${h(t(P.employer.note))}</span>`;
     $("#timeline").innerHTML = P.experience.map((e) => `
       <li class="card">
-        <div class="tl-head"><h3>${h(e.role)} <span>— ${h(e.company)}</span></h3><time>${h(e.period)}</time></div>
-        <p class="muted small">${h(e.loc)}${e.via ? " · via " + h(e.via) : ""}</p>
+        <div class="tl-head"><h3>${h(e.role)} <span>@ ${h(e.company)}</span></h3><time><i data-lucide="calendar-clock"></i>${h(e.period)}</time></div>
+        <p class="muted small"><i data-lucide="map-pin"></i>${h(e.loc)}${e.via ? " · via " + h(e.via) : ""}</p>
         <p>${h(t(e.desc))}</p>
         ${e.bullets.length ? `<ul class="ticks">${li(e.bullets.map((b) => t(b)))}</ul>` : ""}
       </li>`).join("");
-    $("#rnd").innerHTML = `<h3>${h(t(P.rnd.title))}</h3><ul class="ticks">${li(P.rnd.bullets.map((b) => t(b)))}</ul>`;
+    $("#rnd").innerHTML = `<h3><i data-lucide="flask-conical"></i>${h(t(P.rnd.title))}</h3><ul class="ticks">${li(P.rnd.bullets.map((b) => t(b)))}</ul>`;
     $("#earlier").innerHTML = P.earlier.map((e) => `<li><b>${h(e.role)}</b> — ${h(e.company)} <span class="muted">· ${h(e.period)}</span></li>`).join("");
     $("#piSteps").innerHTML = STEPS.map((s) => `<li><b>${h(lang === "en" ? s[0] : s[1])}</b><span>${h(s[2])}</span></li>`).join("");
     $("#piSec").innerHTML = li(SEC.map((x) => t(x)));
     $("#skillGroups").innerHTML = Object.keys(GROUPS).map((g) => `
-      <div class="card"><h3>${h(t(GROUPS[g]))}</h3><div class="tags">${P.skills.filter((s) => s.g === g).map((s) => `<span>${h(s.n)}</span>`).join("")}</div></div>`).join("");
+      <div class="card"><h3><span class="grp-ic"><i data-lucide="${GROUP_ICON[g]}"></i></span>${h(t(GROUPS[g]))}</h3><div class="tags">${P.skills.filter((s) => s.g === g).map((s) => `<span>${h(s.n)}</span>`).join("")}</div></div>`).join("");
     $("#certs").innerHTML = li(P.certifications);
     $("#edu").innerHTML = P.education.map((e) => `<li><b>${h(e.school)}</b><span>${h(t(e.degree))} · ${h(e.period)}</span></li>`).join("");
     if (!$("#cvModal").hidden) renderCV();
+    icons();
   }
 
   // ---------- theme / language ----------
-  function applyThemeIcon() { $("#themeBtn").textContent = document.documentElement.dataset.theme === "light" ? "☾" : "☀"; }
+  function applyThemeIcon() {
+    $("#themeBtn").innerHTML = `<i data-lucide="${document.documentElement.dataset.theme === "dark" ? "sun" : "moon"}"></i>`;
+    icons();
+  }
   $("#themeBtn").onclick = () => {
     const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
     document.documentElement.dataset.theme = next; store.set("theme", next); applyThemeIcon();
@@ -228,8 +236,8 @@
   }
 
   $("#cvDocx").onclick = async () => {
-    const btn = $("#cvDocx"), label = btn.textContent;
-    btn.disabled = true; btn.textContent = "…";
+    const btn = $("#cvDocx"), span = btn.querySelector("span"), label = span.textContent;
+    btn.disabled = true; span.textContent = "…";
     try {
       const D = await loadDocx();
       const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = D;
@@ -271,7 +279,7 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } catch (e) {
       alert((lang === "en" ? "Could not build the .docx: " : "Gagal membuat .docx: ") + e.message);
-    } finally { btn.disabled = false; btn.textContent = label; }
+    } finally { btn.disabled = false; span.textContent = label; }
   };
 
   // ---------- boot ----------
