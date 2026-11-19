@@ -62,17 +62,23 @@ const OUTCOME = { // SNAP responseCode -> what happened to the transfer
 };
 const outcome = (code, msg) => OUTCOME[code] || ["✕", "var(--critical)", "Rejected: " + (msg || "unknown error")];
 
-function step(ok, title, detail) {
-  return h("li", { class: "snap-step" },
-    h("span", { class: "snap-icon", style: `color:${ok ? "var(--good)" : "var(--critical)"}`, "aria-label": ok ? "passed" : "failed" }, ok ? "✓" : "✕"),
-    h("div", {}, h("div", { class: "snap-title" }, title), detail ? h("div", { class: "muted mono snap-detail" }, detail) : null));
+// One icon per SNAP stage; the live pipeline and the final trail share them.
+const PIPE = [["✍️", "Signing request (SHA256withRSA)"], ["🔒", "Encrypting body (RSA-OAEP-256 + AES-256-GCM)"], ["🛡️", "Boomi verifying signature & decrypting"], ["🤖", "AI agent + rules analysing risk"], ["🔐", "Encrypting & signing response"], ["🔏", "Verifying Boomi's response signature"], ["📬", "Decrypting response"]];
+const bubble = (k, badge) => h("span", { class: "snap-bubble", "aria-hidden": "true" }, PIPE[k][0], badge);
+
+// Final trail: real pass/fail per stage; the technical detail opens on click.
+function step(k, ok, title, detail) {
+  const head = [bubble(k, h("span", { class: "snap-badge " + (ok ? "ok" : "bad") }, ok ? "✓" : "✕")),
+    h("span", { class: "snap-title" }, title, h("span", { class: "sr-only" }, ok ? " (passed)" : " (failed)"))];
+  return h("li", { class: "snap-step", style: `--i:${k}` }, detail
+    ? h("details", {}, h("summary", {}, head), h("div", { class: "muted mono snap-detail" }, detail))
+    : h("div", { class: "snap-head" }, head));
 }
 
 // Live pipeline while the request is in flight: steps 1-3 tick on a timer, then it waits on the AI step until the response lands.
-const PIPE = ["Signing request (SHA256withRSA)", "Encrypting body (RSA-OAEP-256 + AES-256-GCM)", "Boomi verifying signature & decrypting", "AI agent + rules analysing risk", "Encrypting & signing response", "Verifying Boomi's response signature", "Decrypting response"];
 function livePipeline() {
   let i = 0;
-  const items = PIPE.map((t) => h("li", {}, h("span", { class: "snap-icon", "aria-hidden": "true" }), h("div", { class: "snap-title" }, t)));
+  const items = PIPE.map(([, t], k) => h("li", {}, h("div", { class: "snap-head" }, bubble(k), h("span", { class: "snap-title" }, t))));
   const paint = () => items.forEach((li, k) => { li.className = "snap-step " + (k < i ? "done" : k === i ? "active" : "pending"); });
   paint();
   document.getElementById("result").replaceChildren(h("div", { class: "card" }, h("h2", {}, "SNAP pipeline"), h("ol", { class: "snap-steps" }, items)));
@@ -122,22 +128,20 @@ function render(r) {
   const security = h("div", { class: "card" },
     h("h2", {}, "SNAP security trail"),
     h("ol", { class: "snap-steps animate" },
-      step(true, "Request signed by partner (SHA256withRSA)", rq.headers?.["X-SIGNATURE"]),
-      step(true, `Body encrypted for Boomi (RSA-OAEP-256 + AES-256-GCM, ${rq.body?.bytes ?? "?"} bytes)`, rq.body?.encryptedData),
-      step(!authFailed, authFailed ? "Boomi rejected the signature or payload" : "Boomi verified the signature and decrypted the body", `X-PARTNER-ID ${rq.headers?.["X-PARTNER-ID"] || "–"} · X-TIMESTAMP ${rq.headers?.["X-TIMESTAMP"] || "–"}`),
-      step(analysed, analysed ? "Risk analysis: AI agent + rules" : "Risk analysis not run", analysed ? `${ra.classification} → ${ra.recommendedAction}` : null),
-      step(!!rs.body?.encryptedData, `Response encrypted for partner (${rs.body?.bytes ?? "?"} bytes)`, rs.body?.encryptedData),
-      step(!!r.signatureValid, r.signatureValid ? "Response signature verified with Boomi's public key" : "Response signature NOT valid", rs.headers?.["X-SIGNATURE"]),
-      step(!!r.response && !r.decryptError, r.decryptError ? "Response could not be decrypted" : "Response decrypted by partner", `${((t.ms || 0) / 1000).toFixed(1)} s round trip · ${t.endpoint || ""}`)),
+      step(0, true, "Request signed by partner (SHA256withRSA)", rq.headers?.["X-SIGNATURE"]),
+      step(1, true, `Body encrypted for Boomi (RSA-OAEP-256 + AES-256-GCM, ${rq.body?.bytes ?? "?"} bytes)`, rq.body?.encryptedData),
+      step(2, !authFailed, authFailed ? "Boomi rejected the signature or payload" : "Boomi verified the signature and decrypted the body", `X-PARTNER-ID ${rq.headers?.["X-PARTNER-ID"] || "–"} · X-TIMESTAMP ${rq.headers?.["X-TIMESTAMP"] || "–"}`),
+      step(3, analysed, analysed ? "Risk analysis: AI agent + rules" : "Risk analysis not run", analysed ? `${ra.classification} → ${ra.recommendedAction}` : null),
+      step(4, !!rs.body?.encryptedData, `Response encrypted for partner (${rs.body?.bytes ?? "?"} bytes)`, rs.body?.encryptedData),
+      step(5, !!r.signatureValid, r.signatureValid ? "Response signature verified with Boomi's public key" : "Response signature NOT valid", rs.headers?.["X-SIGNATURE"]),
+      step(6, !!r.response && !r.decryptError, r.decryptError ? "Response could not be decrypted" : "Response decrypted by partner", `${((t.ms || 0) / 1000).toFixed(1)} s round trip · ${t.endpoint || ""}`)),
     h("details", { style: "margin-top:12px" }, h("summary", {}, "Request headers & string to sign"),
       kvList({ ...rq.headers, stringToSign: rq.stringToSign, encryptedKey: rq.body?.encryptedKey, iv: rq.body?.iv })),
     h("details", {}, h("summary", {}, "Response headers & envelope"),
       kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv })));
 
-  const steps = security.querySelectorAll(".snap-step");
-  steps.forEach((li, k) => li.style.setProperty("--i", k));
   decision.classList.add("reveal"); // decision lands after the trail finishes playing
-  decision.style.setProperty("--d", steps.length * 0.35 + "s");
+  decision.style.setProperty("--d", PIPE.length * 0.35 + "s");
   box.replaceChildren(h("div", { class: "grid two" }, decision, security));
 }
 
