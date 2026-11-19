@@ -192,6 +192,12 @@ window.PROFILE = {
     { school: "Politeknik Negeri Lampung", degree: { en: "Associate's degree, Information Systems Management", id: "Diploma (D3), Manajemen Sistem Informasi" }, period: "2015 – 2018" },
   ],
 
+  // Boomi certifications (Skilljar verification links supplied by the user).
+  boomiCerts: [
+    { n: "Boomi Associate Integration Developer Certification", d: { en: "May 2026", id: "Mei 2026" }, url: "https://verify.skilljar.com/c/5r8ushjncdco" },
+    { n: "Boomi Professional API Design Certification", d: { en: "Jan 2026", id: "Jan 2026" }, url: "https://verify.skilljar.com/c/tz2turbt64ru" },
+    { n: "Boomi Professional API Management Certification", d: { en: "Jan 2026", id: "Jan 2026" }, url: "https://verify.skilljar.com/c/oqnso6yncxi2" },
+  ],
   certifications: [
     "Cisco Certified Network Associate Security (CCNA Security)",
     "Axway — Amplify API Management Components Overview",

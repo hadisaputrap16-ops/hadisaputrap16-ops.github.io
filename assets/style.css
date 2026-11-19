@@ -312,3 +312,5 @@ svg.lucide { width: 1.1em; height: 1.1em; stroke-width: 2; flex: none; vertical-
 }
 .lang-code { display: inline-grid; place-items: center; min-width: 34px; height: 26px; border-radius: 8px; background: var(--bg2); color: var(--green); font: 700 .72rem "JetBrains Mono", monospace; }
 .lang-pick input:checked + span .lang-code { background: var(--green-2); color: #fff; }
+.cert-badge { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px; background: var(--grad); color: #fff; font-size: .7rem; font-weight: 800; vertical-align: 1px; }
+.boomi-cert .verify { white-space: nowrap; font-size: .82rem; font-weight: 700; text-decoration: none; }

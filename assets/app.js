@@ -52,7 +52,7 @@
       experience, projects,
       earlier: P.earlier,
       education: P.education.map((e) => ({ school: e.school, degree: t(e.degree, l), period: e.period })),
-      certifications: P.certifications,
+      certifications: [...P.boomiCerts.map((c) => `${c.n} (${t(c.d, l)})`), ...P.certifications],
       H: l === "id"
         ? { sum: "Ringkasan Profesional", skills: "Keahlian Inti", exp: "Pengalaman Kerja", proj: "Proyek", edu: "Pendidikan", cert: "Sertifikasi", client: "Klien", stack: "Teknologi" }
         : { sum: "Professional Summary", skills: "Core Skills", exp: "Work Experience", proj: "Projects", edu: "Education", cert: "Certifications", client: "Client", stack: "Tech" },
@@ -147,7 +147,7 @@
     $("#piSec").innerHTML = li(SEC.map((x) => t(x)));
     $("#skillGroups").innerHTML = Object.keys(GROUPS).map((g) => `
       <div class="card"><h3><span class="grp-ic"><i data-lucide="${GROUP_ICON[g]}"></i></span>${h(t(GROUPS[g]))}</h3><div class="tags">${P.skills.filter((s) => s.g === g).map((s) => `<span>${h(s.n)}</span>`).join("")}</div></div>`).join("");
-    $("#certs").innerHTML = li(P.certifications);
+    $("#certs").innerHTML = P.boomiCerts.map((c) => `<li class="boomi-cert"><span class="cert-badge">Boomi</span><b>${h(c.n.replace(/^Boomi /, ""))}</b> <span class="muted small">· ${h(t(c.d))}</span> <a href="${h(c.url)}" target="_blank" rel="noopener" class="verify">${lang === "en" ? "Verify" : "Verifikasi"} <i data-lucide="arrow-up-right"></i></a></li>`).join("") + li(P.certifications);
     $("#edu").innerHTML = P.education.map((e) => `<li><b>${h(e.school)}</b><span>${h(t(e.degree))} · ${h(e.period)}</span></li>`).join("");
     if (!$("#cvModal").hidden) renderCV();
     icons();
