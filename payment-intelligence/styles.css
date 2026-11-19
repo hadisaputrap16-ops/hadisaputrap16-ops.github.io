@@ -142,6 +142,7 @@ button.ghost:hover { background: var(--surface-1); }
 .snap-badge.ok { background: var(--good); } .snap-badge.bad { background: var(--critical); }
 .snap-title { font-weight: 600; }
 .snap-detail { overflow-wrap: anywhere; margin: 4px 0 0 46px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; font-size: 12px; animation: snap-in .25s ease-out both; }
+.snap-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* live pipeline: pending is faded, the active icon bobs with a pulsing ring and a data packet runs down to the next stage */
 .snap-step.pending { opacity: .4; }
