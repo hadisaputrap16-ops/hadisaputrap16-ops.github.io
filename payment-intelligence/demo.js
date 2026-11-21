@@ -1,9 +1,15 @@
 // Static demo mode for GitHub Pages. The real portal calls /api/* on a proxy that holds Boomi credentials;
 // here every /api/* call is answered from demo-data.json, a READ-ONLY snapshot of the Payment Intelligence database.
 // Nothing is written, no email is sent, and no AI agent is called.
+// With <script src="demo.js" data-fallback> (the live portal) the real API is tried first and the snapshot only
+// answers when it times out, is unreachable, or returns 404/5xx (e.g. a Boomi cold start). window.PI_MODE tells
+// the pages which one answered: "live" or "demo".
 "use strict";
 (() => {
   const realFetch = window.fetch.bind(window);
+  const FALLBACK = !!document.currentScript?.hasAttribute("data-fallback");
+  const TIMEOUT_MS = { "/api/transfer": 90000, "/api/analyze": 90000, "/api/assistant": 60000 }; // AI calls take 10-40 s
+  window.PI_MODE = FALLBACK ? "live" : "demo";
   let dataP;
   const data = () => (dataP ||= realFetch("demo-data.json").then((r) => {
     if (!r.ok) throw new Error("demo-data.json HTTP " + r.status);
@@ -192,6 +198,16 @@
     if (!url.startsWith("/api/")) return realFetch(input, init);
     let body = {};
     try { body = init?.body ? JSON.parse(init.body) : {}; } catch { /* keep empty */ }
+    if (FALLBACK) {
+      try {
+        const r = await realFetch(input, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS[url] || 15000) });
+        if (r.status < 500 && r.status !== 404) { window.PI_MODE = "live"; window.PI_MODE_REASON = ""; return r; }
+        window.PI_MODE_REASON = `API returned HTTP ${r.status}`;
+      } catch (e) {
+        window.PI_MODE_REASON = e.name === "TimeoutError" ? "API timed out" : "API unreachable";
+      }
+      window.PI_MODE = "demo";
+    }
     try {
       const d = await data();
       await pause(300 + Math.random() * 500); // keep the portal's loading states visible
@@ -206,8 +222,8 @@
     }
   };
 
-  // Banner so visitors know what they are looking at.
-  document.addEventListener("DOMContentLoaded", () => {
+  // Banner so visitors know what they are looking at (static hosting only; the live portal badges fallback answers instead).
+  if (!FALLBACK) document.addEventListener("DOMContentLoaded", () => {
     const bar = document.createElement("div");
     bar.className = "demo-banner";
     bar.setAttribute("role", "note");

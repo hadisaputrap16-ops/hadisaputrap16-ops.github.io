@@ -11,12 +11,14 @@
   <p class="sub">An intrabank transfer sent the way a partner bank would send it: as a <b>SNAP Transfer Intrabank</b> request, signed with SHA256withRSA and encrypted with RSA-OAEP + AES-256-GCM. Boomi verifies and decrypts it, then <b>Payment Intelligence Risk Analyst</b> (the AI agent) and the deterministic rules decide whether the transfer goes through, is held for review or is blocked. The response comes back encrypted and signed too.</p>
   <section class="card">
     <h2>Demo scenarios</h2>
+    <p class="muted" style="margin:0 0 8px">One click sends the scenario as a real SNAP request.</p>
     <div class="row presets" id="presets"></div>
     <p class="muted" style="margin:8px 0 0">Signing and encryption happen in the portal's server, which acts as the partner bank's backend. Private keys never reach the browser.</p>
   </section>
   <form class="card" id="form" style="margin-top:16px">
-    <h2>Transfer</h2>
-    <div class="fields">
+    <details id="custom">
+    <summary class="h2-summary">Custom transfer form <span class="muted">· test your own edge cases</span></summary>
+    <div class="fields" style="margin-top:12px">
       <label>Source account <input name="sourceAccountNo" required maxlength="32" placeholder="1234567890"></label>
       <label>Beneficiary account <input name="beneficiaryAccountNo" required maxlength="32" placeholder="8881234567"></label>
       <label>Amount (IDR) <input name="amount" type="number" min="1" step="1" required></label>
@@ -29,8 +31,9 @@
     <label style="margin-top:12px">Remark <textarea name="remark" maxlength="280"></textarea></label>
     <div class="row" style="margin-top:12px">
       <button class="primary" type="submit" id="submit">Send transfer</button>
-      <span id="busy" class="muted" hidden><span class="spinner"></span> Signing, encrypting, running Boomi + AI agent (usually 10–40 s)…</span>
     </div>
+    </details>
+    <span id="busy" class="muted" hidden><span class="spinner"></span> Signing, encrypting, running Boomi + AI agent (usually 10–40 s)…</span>
   </form>
   <section id="result" style="margin-top:16px" aria-live="polite"></section>
 </main>
@@ -52,7 +55,8 @@ function fill(s) {
   for (const [k, v] of Object.entries(s)) form[k].value = v;
   form.partnerReferenceNo.value = newRef();
 }
-document.getElementById("presets").replaceChildren(...Object.entries(SCENARIOS).map(([name, s]) => h("button", { type: "button", onclick: () => fill(s) }, name)));
+document.getElementById("presets").replaceChildren(...Object.entries(SCENARIOS).map(([name, s]) => h("button", { type: "button",
+  onclick: () => { if (document.getElementById("submit").disabled) return; fill(s); form.requestSubmit(); } }, name)));
 fill(SCENARIOS["Rent payment (normal)"]);
 
 const OUTCOME = { // SNAP responseCode -> what happened to the transfer
@@ -103,24 +107,35 @@ function render(r, sent) {
       h("span", { class: "snap-outcome-icon", style: `color:${color}`, "aria-hidden": "true" }, icon),
       h("div", {}, h("div", { class: "snap-outcome-label" }, label),
         h("div", { class: "muted" }, h("span", { class: "mono" }, r.responseCode || "–"), " · ", r.responseMessage || "",
-          res.latestTransactionStatus ? ` · status ${res.latestTransactionStatus}` : ""))),
+          res.latestTransactionStatus ? ` · status ${res.latestTransactionStatus}` : "")),
+      ["2021700", "4031703"].includes(r.responseCode) && res.referenceNo
+        ? h("a", { class: "button", style: "margin-left:auto", href: "index.html?highlight=" + encodeURIComponent(res.referenceNo) }, "View on Dashboard →") : null),
+    PI.mode() === "demo" ? h("div", { class: "row", style: "margin-top:8px" }, PI.modeBadge(), h("span", { class: "muted" }, "Decision replayed from the read-only snapshot; nothing was saved or sent.")) : null,
     analysed ? [
-      h("h2", { style: "margin-top:16px" }, "AI decision"),
+      h("h2", { style: "margin-top:16px" }, "Final decision"),
       h("div", { class: "row", style: "justify-content:space-between" }, PI.classBadge(ra.classification), PI.actionBadge(ra.recommendedAction)),
       h("div", { class: "row", style: "align-items:baseline;gap:16px;margin-top:12px" },
-        h("div", {}, h("div", { class: "score" }, ra.riskScore ?? "–"), h("div", { class: "muted" }, "risk score / 100")),
-        h("div", {}, h("div", { class: "score", style: "font-size:24px" }, ra.confidence == null ? "–" : Math.round(ra.confidence * 100) + "%"), h("div", { class: "muted" }, "AI confidence"))),
+        h("div", {}, h("div", { class: "score" }, ra.riskScore ?? "–"), h("div", { class: "muted" }, "risk score / 100"))),
+      h("div", { class: "grid two split", style: "margin-top:12px" },
+        h("section", { class: "split-box" }, h("h3", {}, "⚙ Deterministic rules"),
+          h("dl", { class: "kv" },
+            h("dt", {}, "Rule score"), h("dd", {}, ra.ruleScore ?? "–"),
+            h("dt", {}, "Rule override"), h("dd", {}, ra.ruleOverride ? "Applied: rules overrode the AI verdict" : "Not applied")),
+          h("h3", {}, "Triggered indicators"), (ra.indicators || []).length ? PI.chips(ra.indicators) : h("p", { class: "muted" }, "None")),
+        h("section", { class: "split-box ai" }, h("h3", {}, "🤖 Payment Intelligence Risk Analyst (AI agent)"),
+          h("dl", { class: "kv" },
+            h("dt", {}, "Verdict"), h("dd", {}, ra.aiVerdict ? [PI.classBadge(ra.aiVerdict.classification), ` · score ${ra.aiVerdict.riskScore ?? "–"} · ${ra.aiVerdict.recommendedAction} (${ra.aiVerdict.status})`] : "–"),
+            h("dt", {}, "Confidence"), h("dd", {}, ra.confidence == null ? "–" : Math.round(ra.confidence * 100) + "%"),
+            // the trace times the whole round trip; Boomi does not report the agent's own latency
+            h("dt", {}, "Latency"), h("dd", {}, t.ms ? `${(t.ms / 1000).toFixed(1)} s end-to-end (sign → Boomi → AI agent + rules → response)` : "–")),
+          h("h3", {}, "Reasoning"), h("p", {}, ra.explanation || "–"))),
       h("dl", { class: "kv", style: "margin-top:12px" },
-        h("dt", {}, "AI agent verdict"), h("dd", {}, ra.aiVerdict ? `${ra.aiVerdict.classification} · score ${ra.aiVerdict.riskScore ?? "–"} · ${ra.aiVerdict.recommendedAction} (${ra.aiVerdict.status})` : "–"),
-        h("dt", {}, "Rule score"), h("dd", {}, `${ra.ruleScore ?? "–"}${ra.ruleOverride ? " · rule override applied" : ""}`),
         h("dt", {}, "Amount"), h("dd", {}, PI.idr(res.amount?.value)),
         h("dt", {}, "From → to"), h("dd", { class: "mono" }, `${res.sourceAccountNo} → ${res.beneficiaryAccountNo}`),
         h("dt", {}, "Alert"), h("dd", {}, res.additionalInfo?.notification?.status === "NOT_REQUIRED" ? "Not required" : PI.statusBadge(res.additionalInfo?.notification?.status)),
         h("dt", {}, "Pattern"), h("dd", {}, !ra.pattern ? "–" : ra.pattern.confirmed ? `Confirmed (transfer #${ra.pattern.occurrence} to this beneficiary)` : `First occurrence: not classified as fraud${ra.pattern.guard_applied ? ` (AI + rules said ${ra.pattern.unguarded_classification})` : ""}`),
         h("dt", {}, "Investigation"), h("dd", {}, ra.investigationRef ? h("a", { href: "investigation.html?tx=" + encodeURIComponent(res.referenceNo) }, ra.investigationRef) : "–"),
         h("dt", {}, "Check later"), h("dd", {}, h("a", { href: `analyze.html?payment_id=${encodeURIComponent(form.paymentId.value.trim().toUpperCase())}&source_account=${encodeURIComponent(res.sourceAccountNo || "")}` }, "Transaction Analysis → payment ID + source account"))),
-      h("h2", { style: "margin-top:16px" }, "Detected indicators"), PI.chips(ra.indicators),
-      h("h2", { style: "margin-top:16px" }, "Explanation"), h("p", {}, ra.explanation),
       ra.requiresHumanApproval ? h("div", { class: "notice" }, "Block proposed. A human reviewer must approve it on the Investigation page before the account is blocked.") : null,
     ] : (res.additionalInfo?.errors ? h("ul", {}, res.additionalInfo.errors.map((e) => h("li", {}, e))) : null));
 
@@ -135,17 +150,20 @@ function render(r, sent) {
       step(4, !!rs.body?.encryptedData, `Response encrypted for partner (${rs.body?.bytes ?? "?"} bytes)`, rs.body?.encryptedData),
       step(5, !!r.signatureValid, r.signatureValid ? "Response signature verified with Boomi's public key" : "Response signature NOT valid", rs.headers?.["X-SIGNATURE"]),
       step(6, !!r.response && !r.decryptError, r.decryptError ? "Response could not be decrypted" : "Response decrypted by partner", `${((t.ms || 0) / 1000).toFixed(1)} s round trip · ${t.endpoint || ""}`)),
-    h("details", { style: "margin-top:12px" }, h("summary", {}, "Plaintext SNAP request (what gets encrypted)"),
-      h("pre", { class: "mono muted snap-pre" }, JSON.stringify(sent, null, 2))),
-    h("details", {}, h("summary", {}, "Encrypted request (what is sent to Boomi)"),
-      h("pre", { class: "mono muted snap-pre" }, [(t.endpoint || "POST").split(" · ")[0],
-        ...Object.entries(rq.headers || {}).map(([k, v]) => `${k}: ${v}`), "",
+    h("details", { class: "inspect" }, h("summary", {}, "🔍 Inspect SNAP Request & Encrypted Envelope"),
+      h("h3", {}, "1 · SNAP headers"),
+      kvList({ "X-TIMESTAMP": rq.headers?.["X-TIMESTAMP"], "X-SIGNATURE": rq.headers?.["X-SIGNATURE"], "X-PARTNER-ID": rq.headers?.["X-PARTNER-ID"],
+        "X-EXTERNAL-ID": rq.headers?.["X-EXTERNAL-ID"], ...rq.headers, stringToSign: rq.stringToSign }),
+      h("h3", {}, "2 · Encrypted envelope (RSA-OAEP + AES-256-GCM)"),
+      h("pre", { class: "mono muted snap-pre" }, [(t.endpoint || "POST").split(" · ")[0], "",
         JSON.stringify({ encryptedKey: rq.body?.encryptedKey, iv: rq.body?.iv, encryptedData: rq.body?.encryptedData }, null, 2),
-        "", "(long values shortened with …)"].join("\n"))),
-    h("details", {}, h("summary", {}, "Request headers & string to sign"),
-      kvList({ ...rq.headers, stringToSign: rq.stringToSign, encryptedKey: rq.body?.encryptedKey, iv: rq.body?.iv })),
-    h("details", {}, h("summary", {}, "Response headers & envelope"),
-      kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv })));
+        "", "(long values shortened with …)"].join("\n")),
+      h("h3", {}, "3 · Decrypted JSON payload (what Boomi sees)"),
+      h("pre", { class: "mono muted snap-pre" }, JSON.stringify(sent, null, 2)),
+      h("h3", {}, "4 · Response headers & envelope"),
+      kvList({ ...rs.headers, responseCode: rs.body?.responseCode, encryptedKey: rs.body?.encryptedKey, iv: rs.body?.iv }),
+      h("h3", {}, "5 · Decrypted response"),
+      h("pre", { class: "mono muted snap-pre" }, JSON.stringify(res, null, 2))));
 
   decision.classList.add("reveal"); // decision lands after the trail finishes playing
   decision.style.setProperty("--d", PIPE.length * 0.35 + "s");
@@ -164,11 +182,12 @@ form.addEventListener("submit", async (ev) => {
     transactionDate: now, remark: f.remark || undefined, additionalInfo: info,
   };
   const btn = document.getElementById("submit"), busy = document.getElementById("busy");
-  btn.disabled = true; busy.hidden = false;
+  const presets = [...document.querySelectorAll("#presets button")];
+  btn.disabled = true; busy.hidden = false; presets.forEach((b) => b.disabled = true);
   const stopPipeline = livePipeline();
   try { render(await PI.post("/api/transfer", snap), snap); }
   catch (e) { document.getElementById("result").replaceChildren(PI.errorBox("Network error: " + e.message)); }
-  finally { stopPipeline(); btn.disabled = false; busy.hidden = true; form.partnerReferenceNo.value = newRef(); }
+  finally { stopPipeline(); btn.disabled = false; busy.hidden = true; presets.forEach((b) => b.disabled = false); form.partnerReferenceNo.value = newRef(); }
 });
 </script>
 </body>

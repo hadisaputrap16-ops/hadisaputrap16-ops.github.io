@@ -7,8 +7,19 @@
 </head>
 <body>
 <main>
-  <h1>Dashboard</h1>
-  <p class="sub">Live from PostgreSQL via the Boomi API. <span id="gen" class="muted"></span></p>
+  <section class="card hero" aria-labelledby="hero-title">
+    <div>
+      <h1 id="hero-title">Payment Intelligence</h1>
+      <p>Real-time fraud and illegal-gambling detection on <b>SNAP Intrabank transfers</b>. <b>Boomi</b> verifies and decrypts each transfer, <b>deterministic rules</b> score it, and the <b>Payment Intelligence Risk Analyst</b> (an AI agent) explains the decision: approve, hold for review or block.</p>
+    </div>
+    <a class="button primary" href="transfer.html">Simulate SNAP Transfer →</a>
+  </section>
+  <div class="row status-bar">
+    <h2 style="margin:0">Dashboard</h2>
+    <span id="mode"></span>
+    <span id="gen" class="muted"></span>
+    <button type="button" id="refresh">↻ Refresh</button>
+  </div>
   <div id="err"></div>
   <section class="grid kpis" id="kpis" aria-label="Key figures"></section>
   <div class="grid two" style="margin-top:16px">
@@ -27,6 +38,8 @@
   </div>
   <section class="card" style="margin-top:16px">
     <h2>Most recent decisions</h2>
+    <div class="row pills" id="filters" role="group" aria-label="Filter decisions"></div>
+    <div id="hl"></div>
     <div class="table-wrap" id="recent"></div>
   </section>
 </main>
@@ -106,11 +119,91 @@ function hbars(target, items) {
       h("b", { style: "text-align:right" }, i.value))));
 }
 
+// Decision filter: SNAP outcome groups over the stored recommended action.
+const GROUPS = { All: null, Approved: ["APPROVE"], Held: ["REVIEW", "FLAG"], Blocked: ["BLOCK"] };
+let filter = "All", recent = [];
+const highlight = new URLSearchParams(location.search).get("highlight");
+const $ = (id) => document.getElementById(id);
+
+function skeletons() {
+  $("kpis").replaceChildren(...Array.from({ length: 6 }, () => h("div", { class: "card kpi" }, PI.skeleton(3, "line"))));
+  $("trend").replaceChildren(PI.skeleton(1, "block"));
+  $("classes").replaceChildren(PI.skeleton(4, "line"));
+  $("indicators").replaceChildren(PI.skeleton(4, "line"));
+  $("recent").replaceChildren(PI.skeleton(5, "row-line"));
+}
+
+// Risk breakdown for one decision, loaded on first expand from the investigation query.
+const details = {};
+function breakdown(inv) {
+  if (!inv.ok) return PI.errorBox("Could not load details: " + (inv.error || "unknown error"));
+  const dec = (inv.decisions || [])[0] || {}, n = (inv.notifications || [])[0];
+  return h("div", { class: "grid two breakdown" },
+    h("div", {}, h("h3", {}, "Deterministic rules"),
+      h("dl", { class: "kv" },
+        h("dt", {}, "Rule score"), h("dd", {}, dec.rule_score ?? "–"),
+        h("dt", {}, "Rule override"), h("dd", {}, dec.rule_override ? "Yes: rules overrode the AI verdict" : "No"),
+        h("dt", {}, "Final"), h("dd", {}, PI.classBadge(dec.final_classification), " · score ", dec.final_risk_score ?? "–")),
+      h("h3", {}, "Triggered indicators"), (dec.detected_indicators || []).length ? PI.chips(dec.detected_indicators) : h("p", { class: "muted" }, "None"),
+      h("h3", {}, "Alert"), h("p", {}, n ? [PI.statusBadge(n.status), " ", n.channel || ""] : "Not required"),
+      dec.requires_human_approval ? h("p", {}, PI.statusBadge(dec.approval_status), " human approval") : null),
+    h("div", {}, h("h3", {}, "Payment Intelligence Risk Analyst (AI agent)"),
+      h("dl", { class: "kv" },
+        h("dt", {}, "AI verdict"), h("dd", {}, dec.ai_classification ? [PI.classBadge(dec.ai_classification), ` · score ${dec.ai_risk_score ?? "–"} · ${dec.ai_recommended_action || "–"}`] : "–"),
+        h("dt", {}, "Confidence"), h("dd", {}, dec.ai_confidence == null ? "–" : Math.round(dec.ai_confidence * 100) + "%"),
+        h("dt", {}, "Agent status"), h("dd", {}, dec.agent_status || "–")),
+      h("p", {}, dec.ai_explanation || dec.explanation || "No AI reasoning stored for this decision."),
+      h("a", { href: "investigation.html?tx=" + encodeURIComponent(inv.transaction?.transaction_id || dec.transaction_id || "") }, "Open investigation →")));
+}
+
+function toggleRow(tr, r) {
+  const open = tr.getAttribute("aria-expanded") === "true";
+  tr.setAttribute("aria-expanded", String(!open));
+  tr.querySelector(".expander").setAttribute("aria-expanded", String(!open));
+  if (open) return tr.nextElementSibling?.classList.contains("detail") && tr.nextElementSibling.remove();
+  const cell = h("td", { colspan: 7 }, PI.skeleton(3, "line"));
+  tr.after(h("tr", { class: "detail" }, cell));
+  (details[r.transaction_id] ||= PI.query("investigation", { transaction_id: r.transaction_id }).catch((e) => ({ ok: false, error: e.message })))
+    .then((inv) => cell.replaceChildren(breakdown(inv)));
+}
+
+function renderRecent() {
+  const groups = Object.keys(GROUPS);
+  $("filters").replaceChildren(...groups.map((g) => h("button", { type: "button", "aria-pressed": String(g === filter), onclick: () => { filter = g; renderRecent(); } },
+    g, h("span", { class: "muted" }, " " + recent.filter((r) => !GROUPS[g] || GROUPS[g].includes(r.action)).length))));
+  const rows = recent.filter((r) => !GROUPS[filter] || GROUPS[filter].includes(r.action));
+  $("recent").replaceChildren(h("table", {},
+    h("thead", {}, h("tr", {}, ["", "Transaction", "Classification", "Risk", "Action", "Amount", "Time"].map((x) => h("th", {}, x)))),
+    h("tbody", {}, rows.length ? rows.map((r) => {
+      const tr = h("tr", { class: "expandable" + (r.transaction_id === highlight ? " highlight" : ""), "aria-expanded": "false" });
+      const btn = h("button", { type: "button", class: "ghost expander", "aria-label": "Show risk breakdown for " + r.transaction_id }, "›");
+      tr.addEventListener("click", (e) => { if (!e.target.closest("a")) toggleRow(tr, r); });
+      tr.append(h("td", {}, btn),
+        h("td", {}, h("a", { href: "investigation.html?tx=" + encodeURIComponent(r.transaction_id) }, r.transaction_id), r.live ? null : h("span", { class: "muted" }, " (seed)")),
+        h("td", {}, PI.classBadge(r.classification)), h("td", {}, r.risk_score), h("td", {}, PI.actionBadge(r.action)),
+        h("td", {}, PI.idr(r.amount)), h("td", {}, PI.when(r.created_at)));
+      return tr;
+    }) : h("tr", {}, h("td", { colspan: 7, class: "muted" }, "No decisions in this group.")))));
+}
+
+function showHighlight() {
+  if (!highlight) return;
+  const tr = $("recent").querySelector("tr.highlight");
+  if (tr) { tr.scrollIntoView({ block: "center" }); if (tr.getAttribute("aria-expanded") !== "true") tr.click(); return $("hl").replaceChildren(); }
+  $("hl").replaceChildren(h("div", { class: "notice", style: "margin-bottom:8px" }, `Transaction ${highlight} is not among the most recent decisions${PI.mode() === "demo" ? " in the demo snapshot" : ""}. `,
+    h("a", { href: "investigation.html?tx=" + encodeURIComponent(highlight) }, "Open its investigation →")));
+}
+
 async function load() {
-  const d = await PI.query("dashboard");
-  if (!d.ok) return document.getElementById("err").replaceChildren(PI.errorBox("Could not load dashboard: " + (d.error || "unknown error")));
+  const btn = $("refresh");
+  btn.disabled = true; btn.textContent = "Syncing…";
+  const d = await PI.query("dashboard").catch((e) => ({ ok: false, error: e.message }));
+  btn.disabled = false; btn.textContent = "↻ Refresh";
+  $("mode").replaceChildren(PI.modeBadge());
+  if (!d.ok) return $("err").replaceChildren(PI.errorBox("Could not load dashboard: " + (d.error || "unknown error")));
+  $("err").replaceChildren();
   const t = d.totals, c = d.by_classification || {};
-  document.getElementById("gen").textContent = "Updated " + PI.when(d.generated_at);
+  $("gen").textContent = `Last synced ${new Date().toLocaleTimeString("en-GB")} · data generated ${PI.when(d.generated_at)}`;
   document.getElementById("kpis").replaceChildren(
     kpi("Transactions analyzed", t.analyzed, `${t.analyzed_live} live through the AI agent`),
     kpi("Potential fraud", c.POTENTIAL_FRAUD || 0, PI.compactIdr(d.amount_at_risk_idr.fraud) + " at risk"),
@@ -121,13 +214,12 @@ async function load() {
   trendChart(d.trend_14d || []);
   hbars("classes", ORDER.map((k) => ({ label: CLASSES[k].label, value: c[k] || 0, color: CLASSES[k].color })));
   hbars("indicators", (d.top_indicators || []).map((i) => ({ label: i.code, value: i.count })));
-  document.getElementById("recent").replaceChildren(h("table", {},
-    h("thead", {}, h("tr", {}, ["Transaction", "Classification", "Risk", "Action", "Amount", "Time"].map((x) => h("th", {}, x)))),
-    h("tbody", {}, (d.recent || []).map((r) => h("tr", {},
-      h("td", {}, h("a", { href: "investigation.html?tx=" + encodeURIComponent(r.transaction_id) }, r.transaction_id), r.live ? null : h("span", { class: "muted" }, " (seed)")),
-      h("td", {}, PI.classBadge(r.classification)), h("td", {}, r.risk_score), h("td", {}, PI.actionBadge(r.action)),
-      h("td", {}, PI.idr(r.amount)), h("td", {}, PI.when(r.created_at)))))));
+  recent = d.recent || [];
+  renderRecent();
+  showHighlight();
 }
+$("refresh").addEventListener("click", load);
+skeletons();
 load();
 </script>
 </body>

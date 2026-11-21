@@ -118,5 +118,14 @@ const PI = (() => {
 
   function errorBox(msg) { return h("div", { class: "notice error", role: "alert" }, msg); }
 
-  return { CLASSES, h, post, query, idr, compactIdr, when, classBadge, actionBadge, statusBadge, chips, nav, errorBox };
+  // Which source answered the last /api call (set by demo.js; "live" when demo.js is absent).
+  const mode = () => window.PI_MODE || "live";
+  const modeBadge = () => mode() === "live"
+    ? h("span", { class: "badge status-pill" }, h("span", { style: "color:var(--good)", "aria-hidden": "true" }, "●"), "API: Live")
+    : h("span", { class: "badge status-pill demo", title: window.PI_MODE_REASON || "Read-only snapshot" },
+        h("span", { style: "color:var(--warning)", "aria-hidden": "true" }, "◎"), "Demo Snapshot Mode", window.PI_MODE_REASON ? h("span", { class: "muted" }, " · " + window.PI_MODE_REASON) : null);
+  // n grey shimmering placeholder lines; extra class sets their size.
+  const skeleton = (n = 3, cls = "") => h("div", { class: "skeleton-group", "aria-hidden": "true" }, Array.from({ length: n }, () => h("div", { class: "skeleton " + cls })));
+
+  return { CLASSES, h, post, query, idr, compactIdr, when, classBadge, actionBadge, statusBadge, chips, nav, errorBox, mode, modeBadge, skeleton };
 })();
